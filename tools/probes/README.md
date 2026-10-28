@@ -53,26 +53,21 @@ committing, and rebuild and commit the image whenever its source changes.
 
 ## Building
 
-The compiler, assembler and linker come from **NEC-78K3-Toolchain**, a
-separate repository with its own build instructions -- not something you
-need to build yourself from scratch, and not something you build straight
-from this repo's own tools. **That repository is currently private** (ask
-KY4WI/Dave for access if you don't have it yet); this is deliberate, not
-an oversight -- the toolchain's own modified vbcc/vasm sources have to
-stay in private repos under their license, and only the patches against
-the stock releases are meant to be shared publicly. Whether or how that
-split ends up public is a separate, not-yet-settled question from this
-repository's own goal of being readable and buildable-from by anyone --
-until it is, building your own probe image needs that access, but reading
-the sources, the hardware docs and this README doesn't.
-
-Once you have access:
+The compiler, assembler and linker come from
+[**NEC-78K3-Toolchain**](https://github.com/KY4WI/NEC-78K3-Toolchain) --
+a public repository with its own build instructions, not something you
+need to build yourself from scratch:
 
 ```sh
-git clone <the toolchain repository's URL, from whoever gave you access>
+git clone https://github.com/KY4WI/NEC-78K3-Toolchain.git
 cd NEC-78K3-Toolchain && ./build.sh    # or: make
 # binaries land in bin/: vbcc78k3, vc, vasm78k3_std, vlink
 ```
+
+Only the patches against the stock vbcc/vasm/vlink releases live there
+(plus the pristine upstream tarballs they apply to) -- the full modified
+sources stay in private repositories under their license, same as any
+other vbcc/vasm backend.
 
 Then point the probes' build scripts at that `bin/` directory, either on
 `PATH` or with environment variables:
@@ -92,12 +87,9 @@ VLINK=/path/to/NEC-78K3-Toolchain/bin/vlink \
   yourself:** earlier vbcc passed a string's contents where its address
   was meant (the cause of the old "PQRSTUVW" display), and an earlier
   vasm swapped the source/destination bytes of the two-short-address
-  instructions (`MOV saddr,saddr'` and relatives). Both are fixed as of
-  the toolchain repository's first commits (`024f744`/`eb232c2`,
-  2026-10-28) -- there is no separate fixed revision to ask for, just
-  build from whatever you're given access to. The old revision numbers
-  this paragraph used to cite (vbcc `2945d2e`, vasm `3e822b7`/`9756920`)
-  are superseded by that history and no longer need chasing down either.
+  instructions (`MOV saddr,saddr'` and relatives). Both are already fixed
+  in the published toolchain repository -- there is no earlier revision
+  to avoid, just build from what's published there.
   Shared code is in [`common/`](common/): `resident_api` (C wrappers for
   the mask ROM's `1Fxxh` entries), `uart` and `debug_uart` (debug output
   on CN3, the hardware UART), `debug_serial` (bit-banged debug output on
