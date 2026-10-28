@@ -246,10 +246,13 @@ speed tried, all 0.16% fast by the formula: `[BENCH]`
 
 (`baudsweep` for all six, `uartprobe` for 1200; framing 8N2, `SCM = CDh`,
 set once, then only `SCC`/`BRG` changed between speeds.) On Dave's bench
-radio the UART is taken from connector CN3 (RX, TX and LOC): the LOC
-trace is cut and that pin grounded, LOC being available on another
-connector, so a second serial port stays connected alongside the mic-jack
-one. `[BENCH]`
+radio the UART is taken from CN3 pin 2 (RXD) and CN3 pin 3 (TXD). CN3 pin
+1 is LOK (the link-complete pulse of section 12.3), also duplicated at
+CN2 pin 1, so its trace is cut there and that pin tied to ground instead
+-- putting GND, RXD and TXD on three adjacent pins of one connector (CN3)
+for a single 3-pin tap, rather than a separate wire out to CN4 pin 2
+(ground) elsewhere on the board. This leaves a second serial port
+connected alongside the mic-jack one. `[BENCH]`
 
 Earlier results here were wrong because of a compiler bug, not the
 hardware: before vbcc backend revision `2945d2e`, C code read a string's or table's
