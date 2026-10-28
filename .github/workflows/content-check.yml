@@ -1,0 +1,38 @@
+name: Research repository content checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  content-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate radio image policy, generated includes and references
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Synthetic channel files are reproduced byte-for-byte;
+          # probe binaries have source-presence/size checks, not build attestations.
+          bash tools/check_images.sh
+          sh include/make_inc.sh --check
+          if find docs -type f -iname '*.pdf' | grep -q .; then
+            echo 'Third-party PDFs must be linked, not committed.' >&2
+            exit 1
+          fi
+          if grep -R -I -E -i 'wormfood|kenwood_tk-x4x_(maskrom_)?disassembly|/path/to/private/' --exclude-dir=.git --exclude='*.yml' .; then
+            echo 'Found an outdated repository reference.' >&2
+            exit 1
+          fi
+      - name: Check shell and Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' script; do bash -n "$script"; done < <(find tools -name '*.sh' -type f -print0)
+          bash -n tools/check_images.sh
+          python3 -I - <<'PY'
+          import ast
+          from pathlib import Path
+          ast.parse(Path('channel_tests/build_tkx4x_test_codeplugs.py').read_text())
+          PY

@@ -1,0 +1,31 @@
+# Locally built tools
+tools/legacy/tk840download
+tools/legacy/tk840upload
+tools/legacy/tk941patch
+*.o
+
+# Private radio images, dumps and regenerated disassemblies
+*.bin
+*.img
+*.hex
+*.HEX
+*.lst
+*.rom
+*.s19
+*.srec
+*.ihx
+
+# ...except our own probe images under tools/probes/. Each NAME.bin must
+# have NAME.c, .s, .S or .asm beside it; tools/check_images.sh (run
+# by the content check) refuses anything else.
+!tools/probes/*.bin
+!tools/probes/*/*.bin
+
+# ...and the synthetic channel tests, which the content check regenerates
+# from channel_tests/build_tkx4x_test_codeplugs.py and compares.
+!channel_tests/*.bin
+!channel_tests/*.img
+
+# Probe build listings
+tools/probes/*.lst
+tools/probes/*/*.lst
