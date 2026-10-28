@@ -2,7 +2,7 @@
 
 This directory distributes independently written annotations and symbols for the common NEC µPD78312A mask ROM in the Kenwood TK-840, TK-940, and TK-941. It does **not** distribute mask-ROM or firmware code.
 
-Use the [NEC 78K/III disassembler](https://github.com/KY4WI/NEC_78KIII_Disassembler) (`78k_disasm`) with a ROM image obtained from your own hardware to produce a commented listing.
+Use the [NEC 78K/III disassembler](https://github.com/KY4WI/NEC_78K3_Disassembler) (`78k_disasm`) with a ROM image obtained from your own hardware to produce a commented listing.
 
 ## Contents
 

@@ -55,7 +55,7 @@ Result from the bench: both showed correctly, so loops were never the
 problem. The cause was in the compiler: vbcc78k3 passed a string's first
 two bytes instead of its address, and reading that unmapped address
 gives back its own low byte, hence "+1 per position". Fixed in
-KY4WI/vbcc `2945d2e`; the C probes are rebuilt with it.
+the earlier vbcc backend revision `2945d2e`; the C probes are rebuilt with it.
 
 **2. Beeps.** For each number `01`-`0D` (Grp UP/DN, then Scan):
 
@@ -103,7 +103,7 @@ From this directory:
 VASM=/path/to/vasm78k3_std ./build.sh benchtest
 ```
 
-It needs a `vasm78k3_std` with the two-short-address fix (KY4WI/VASM
+It needs a `vasm78k3_std` with the two-short-address fix (an earlier vasm backend revision
 `3e822b7`, 2026-10-14): `rx_pop` and the echo history use
 `MOV saddr,saddr'`. It includes the mask ROM names and `uPD78312A.inc` from
 the repository's `annotations/maskrom/`. The image is exactly

@@ -51,7 +51,7 @@ and CRC-32 `6C6A917F`. The database is deliberately CRC-locked to that
 original image. It is **not** for the TOT-patched image, other revisions,
 or a combined frequency/TOT patch.
 
-With [NEC 78K/III Disassembler](https://github.com/KY4WI/NEC_78KIII_Disassembler):
+With [NEC 78K/III Disassembler](https://github.com/KY4WI/NEC_78K3_Disassembler):
 
 ```sh
 78k_disasm -b 0x8000 tk94x_ab00.bin -d tk94x_ab00_tot.inc --listing tot.lst

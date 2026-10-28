@@ -7,7 +7,7 @@
 #   const char build_tools[] = "vbcc 0.1, vasm 2.0f 0.1, vlink 0.18a";
 # The image prints it at start, so a bench report says which compiler made
 # the code that ran. vbcc and vasm report their own 78K/III backend's
-# version (machine.c, cpu.c; NEC-78K3_Toolchain, not vbcc/vasm's own
+# version (machine.c, cpu.c; NEC_78K3_Toolchain, not vbcc/vasm's own
 # release version, which the second number already covers for vasm).
 #
 # Accept both current backend version banners ("code-generator 0.1",

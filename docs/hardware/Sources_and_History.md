@@ -344,7 +344,7 @@ different from the rest of the connector.
 
 - Section 12.4: the hardware UART sends clean text at 1200-115200 bit/s
   (bench); the bench radio's CN3 tap; the earlier wrong results explained
-  by the vbcc string bug (KY4WI/vbcc `2945d2e`).
+  by the vbcc string bug (the earlier vbcc backend revision `2945d2e`).
 - Section 1.5: the "persistent serial glitch" was that same bug.
 - From the old working copy (now removed; git history has it): CLONE
   mode's start in 10.5, the key bytes' bit structure in 11.8, the TA/"(S)"

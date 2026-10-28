@@ -2,7 +2,7 @@
 
 The repository distributes **annotations and symbols**, not Kenwood ROM or
 firmware bytes. To reproduce a listing locally, obtain your own lawful image
-and build [NEC 78K/III Disassembler](https://github.com/KY4WI/NEC_78KIII_Disassembler)
+and build [NEC 78K/III Disassembler](https://github.com/KY4WI/NEC_78K3_Disassembler)
 with `make`. Put its `78k_disasm` executable on your `PATH` or use a
 full executable path. Run the commands below from this repository's root.
 

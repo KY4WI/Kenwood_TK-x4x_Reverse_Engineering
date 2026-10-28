@@ -86,7 +86,7 @@ The generated listings contain copyrighted code and are not distributed here.
 ## Annotations
 
 Comments and names for code you supply yourself, used with the
-[NEC 78K/III disassembler](https://github.com/KY4WI/NEC_78KIII_Disassembler).
+[NEC 78K/III disassembler](https://github.com/KY4WI/NEC_78K3_Disassembler).
 They contain no Kenwood code.
 
 - [`annotations/maskrom/`](annotations/maskrom/README.md) - the common mask
@@ -139,9 +139,9 @@ ROM, datasheet, bench test).
   channel and patch utility.
 - [Kenwood_TK-x4x_Chirp_Driver](https://github.com/KY4WI/Kenwood_TK-x4x_Chirp_Driver) -
   CHIRP support for the family.
-- [NEC_78KIII_Disassembler](https://github.com/KY4WI/NEC_78KIII_Disassembler) -
+- [NEC_78K3_Disassembler](https://github.com/KY4WI/NEC_78K3_Disassembler) -
   the disassembler the annotations are written for.
-- [NEC-78K3_Toolchain](https://github.com/KY4WI/NEC-78K3_Toolchain) -
+- [NEC_78K3_Toolchain](https://github.com/KY4WI/NEC_78K3_Toolchain) -
   the vbcc/vasm/vlink toolchain ([`tools/probes/`](tools/probes/) builds
   with it) that compiles, assembles and links replacement firmware for
   the 78K/III.

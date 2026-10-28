@@ -303,7 +303,7 @@ is not an independent bench measurement. `[RE, math-verified]`
 
 **The earlier "persistent serial glitch"** in the debug output (first
 characters of a message right, later ones wrong) was not timing: it was
-the vbcc string bug (fixed in KY4WI/vbcc `2945d2e`), which passed a
+the vbcc string bug (fixed in vbcc backend revision `2945d2e`), which passed a
 string's first bytes instead of its address. The debug output was slowed
 from 9600 to 2400 bit/s while chasing it; with the bug fixed, 9600 is
 worth trying again. `[RE]`

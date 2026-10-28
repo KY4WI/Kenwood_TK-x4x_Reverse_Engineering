@@ -252,7 +252,7 @@ connector, so a second serial port stays connected alongside the mic-jack
 one. `[BENCH]`
 
 Earlier results here were wrong because of a compiler bug, not the
-hardware: before KY4WI/vbcc `2945d2e`, C code read a string's or table's
+hardware: before vbcc backend revision `2945d2e`, C code read a string's or table's
 contents where its address was meant. `uartprobe`'s first run, recorded
 as "Hello world! plus the alphabet", was really the open bus counting up
 from the address `"He"` (`6548h`): `H I J K ...`. `baudsweep`'s "garbage
