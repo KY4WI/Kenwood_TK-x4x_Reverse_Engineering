@@ -141,7 +141,7 @@ ROM, datasheet, bench test).
   CHIRP support for the family.
 - [NEC_78KIII_Disassembler](https://github.com/KY4WI/NEC_78KIII_Disassembler) -
   the disassembler the annotations are written for.
-- [NEC-78K3-Toolchain](https://github.com/KY4WI/NEC-78K3-Toolchain) -
+- [NEC-78K3_Toolchain](https://github.com/KY4WI/NEC-78K3_Toolchain) -
   the vbcc/vasm/vlink toolchain ([`tools/probes/`](tools/probes/) builds
   with it) that compiles, assembles and links replacement firmware for
   the 78K/III.

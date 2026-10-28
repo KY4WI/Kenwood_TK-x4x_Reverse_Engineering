@@ -54,13 +54,13 @@ committing, and rebuild and commit the image whenever its source changes.
 ## Building
 
 The compiler, assembler and linker come from
-[**NEC-78K3-Toolchain**](https://github.com/KY4WI/NEC-78K3-Toolchain) --
+[**NEC-78K3_Toolchain**](https://github.com/KY4WI/NEC-78K3_Toolchain) --
 a public repository with its own build instructions, not something you
 need to build yourself from scratch:
 
 ```sh
-git clone https://github.com/KY4WI/NEC-78K3-Toolchain.git
-cd NEC-78K3-Toolchain && ./build.sh    # or: make
+git clone https://github.com/KY4WI/NEC-78K3_Toolchain.git
+cd NEC-78K3_Toolchain && ./build.sh    # or: make
 # binaries land in bin/: vbcc78k3, vc, vasm78k3_std, vlink
 ```
 
@@ -73,10 +73,10 @@ Then point the probes' build scripts at that `bin/` directory, either on
 `PATH` or with environment variables:
 
 ```sh
-VASM=/path/to/NEC-78K3-Toolchain/bin/vasm78k3_std ./build.sh benchtest   # single-file assembly probes
-VBCC=/path/to/NEC-78K3-Toolchain/bin/vbcc78k3 \
-VASM=/path/to/NEC-78K3-Toolchain/bin/vasm78k3_std \
-VLINK=/path/to/NEC-78K3-Toolchain/bin/vlink \
+VASM=/path/to/NEC-78K3_Toolchain/bin/vasm78k3_std ./build.sh benchtest   # single-file assembly probes
+VBCC=/path/to/NEC-78K3_Toolchain/bin/vbcc78k3 \
+VASM=/path/to/NEC-78K3_Toolchain/bin/vasm78k3_std \
+VLINK=/path/to/NEC-78K3_Toolchain/bin/vlink \
     ./panelprobe/build.sh                                                # a probe in a subdirectory
 ```
 
