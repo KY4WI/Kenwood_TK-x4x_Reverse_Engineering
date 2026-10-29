@@ -399,12 +399,11 @@ Stock firmware generates CTCSS/DCS on P34 with a phase-accumulator DDS,
 not a one-shot square wave: a per-tone frequency word is added into a
 running phase value every tick (an interrupt-driven add-with-carry), and
 the resulting phase indexes a smoothly-varying lookup table whose value
-is written straight to `PWM0` every tick. A second table, indexed by a
-tone-select byte, supplies each tone's own frequency word. This means the
-hardware path is already a general-purpose, per-tone-programmable
-waveform generator, not fixed-function CTCSS/DCS logic -- structurally
-the same idea as the TK-x80's DAC-based tone synthesizer, just through
-PWM instead of a parallel DAC. `[FW][RE]`
+is written straight to `PWM0` every tick. This means the hardware path
+is already a general-purpose, per-tone-programmable waveform generator,
+not fixed-function CTCSS/DCS logic -- structurally the same idea as the
+TK-x80's DAC-based tone synthesizer, just through PWM instead of a
+parallel DAC. `[FW][RE]`
 
 **Open: the tick rate.** The periodic interrupt driving this is chained
 off the A/D converter's conversion-complete interrupt rather than a named
@@ -419,6 +418,36 @@ frequencies. Not yet established -- needs either the µPD78312A's A/D
 conversion timing (datasheet) or a bench measurement of the actual tick
 rate (e.g. scope `P34`/the `QT`/`DQT` net while a CTCSS tone is active).
 `[OPEN]`
+
+### 13.3.3 Output level is a per-mode EEPROM calibration byte, multiplied in every tick
+
+The DDS output amplitude is not fixed. Which calibration byte applies
+depends on a mode flag (`FE8F.5`): `[FW][RE]`
+
+```text
+amplitude_byte = FE8F.5 ? FE66 : FE64
+PWM0           = amplitude_byte * phase_table[...] + table[amplitude_byte]
+```
+
+every tick. `FE64` and `FE66` are loaded straight from EEPROM bytes `F9`
+and `FA` -- exactly the bytes the KPG calibration readback (9.4.3) labels
+**"QT fine deviation"** and **"DQT fine deviation."** A third, sibling
+routine for the 300 bps LTR data path does the identical multiply using
+`FE68`, loaded from EEPROM byte `FB` ("LTR fine deviation").
+
+So each of the three low-speed signaling modes already has its own
+independent, per-radio, software-read gain byte multiplied straight into
+the PWM/DDS output -- this is Kenwood's own deviation-alignment knob for
+these modes, not a fixed level baked into the hardware. Stock sets it low
+because CTCSS/DCS/LTR only need a few hundred Hz of deviation, nowhere
+near full-scale. Replacement firmware reusing this path for something
+that wants more deviation (e.g. Bell 202 AFSK) does not need to touch the
+radio's actual EEPROM calibration -- it only needs to not read `F9`/`FA`
+and substitute its own constant. The multiply is 8x8->16-bit, so there is
+substantial headroom between the stock CTCSS-sized value and whatever
+the coupling filter (13.3.1) and the deviation limiter can take before
+clipping; the actual stock `F9` value (and therefore how much headroom is
+left) hasn't been read back from a real radio yet. `[OPEN]`
 
 ## 13.4 Low-speed receive signaling
 
