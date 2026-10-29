@@ -364,6 +364,62 @@ This path is appropriate for:
 - DCS encode,
 - other low-rate signaling experiments.
 
+### 13.3.1 The coupling filter, traced on the bench radio
+
+From P34 into the modulation summing op-amp: `[SM][BENCH]`
+
+```text
+P34 --[22k]-- A --[10k]-- B --[4.7uF]--[100k]-- op-amp summing input
+             |                       |
+          4700pF to GND      0.01uF and 22k, both to GND
+```
+
+Two poles (the two caps; the 22k-to-ground at B and the 100k into the
+op-amp are loading, not additional poles). Solved as a loaded two-stage
+RC ladder (op-amp input treated as AC virtual ground; the 4.7uF series
+cap is low-impedance at these frequencies regardless): `[RE, math-verified]`
+
+| Frequency | Attenuation (relative to the P34 drive) |
+|---:|---:|
+| 150 Hz (mid-CTCSS) | approx. -9 dB |
+| 1200 Hz | approx. -12.5 dB |
+| 2200 Hz | approx. -16.5 dB |
+
+This is a gentle low-pass with its effective corner around 1 kHz, not a
+tight sub-audio-only filter -- both Bell 202 AFSK tones (1200/2200 Hz)
+pass through it, about 4 dB apart. That imbalance is small enough to
+correct by scaling one tone's amplitude in software (see 13.3.2's DDS
+table, which already gives each tone its own entry). Nothing here rules
+out a software AFSK packet transmitter on this path; the open question is
+the DDS tick rate (13.3.2), not this filter.
+
+### 13.3.2 P34 is already a software tone synthesizer, not a fixed tone chip
+
+Stock firmware generates CTCSS/DCS on P34 with a phase-accumulator DDS,
+not a one-shot square wave: a per-tone frequency word is added into a
+running phase value every tick (an interrupt-driven add-with-carry), and
+the resulting phase indexes a smoothly-varying lookup table whose value
+is written straight to `PWM0` every tick. A second table, indexed by a
+tone-select byte, supplies each tone's own frequency word. This means the
+hardware path is already a general-purpose, per-tone-programmable
+waveform generator, not fixed-function CTCSS/DCS logic -- structurally
+the same idea as the TK-x80's DAC-based tone synthesizer, just through
+PWM instead of a parallel DAC. `[FW][RE]`
+
+**Open: the tick rate.** The periodic interrupt driving this is chained
+off the A/D converter's conversion-complete interrupt rather than a named
+timer, and once tone generation is active nothing in that code path
+rewrites the A/D mode register again -- consistent with the A/D being
+left to free-run continuously, purely as a convenient periodic-interrupt
+source, at whatever rate its hardware conversion time gives at this
+radio's 6 MHz CPU clock. That rate is the deciding number for whether
+1200 bps Bell 202 AFSK (1200/2200 Hz tones) is reachable: it needs to be
+comfortably above a few kHz for clean tone synthesis at those
+frequencies. Not yet established -- needs either the µPD78312A's A/D
+conversion timing (datasheet) or a bench measurement of the actual tick
+rate (e.g. scope `P34`/the `QT`/`DQT` net while a CTCSS tone is active).
+`[OPEN]`
+
 ## 13.4 Low-speed receive signaling
 
 ```text
