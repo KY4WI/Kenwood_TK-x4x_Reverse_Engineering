@@ -358,6 +358,10 @@ analog circuitry filters/couples/sums it into the transmit modulation path,
 while DAC-controlled calibration sets levels elsewhere in the chain.
 `[SM][FW][RE]`
 
+Physically, `P34`/`PWM0` is **pin 39** of the 64-pin plastic shrink DIP/QUIP
+package (µPD78312A/78310A pin configuration, sec. 1.3.1 of the manual) --
+between `AVss`/`AVREF`/`AN0-AN3` (pins 33-38) and the rest of port 3. `[DS]`
+
 This path is appropriate for:
 
 - CTCSS/PL encode,
@@ -405,19 +409,28 @@ not fixed-function CTCSS/DCS logic -- structurally the same idea as the
 TK-x80's DAC-based tone synthesizer, just through PWM instead of a
 parallel DAC. `[FW][RE]`
 
-**Open: the tick rate.** The periodic interrupt driving this is chained
-off the A/D converter's conversion-complete interrupt rather than a named
-timer, and once tone generation is active nothing in that code path
-rewrites the A/D mode register again -- consistent with the A/D being
-left to free-run continuously, purely as a convenient periodic-interrupt
-source, at whatever rate its hardware conversion time gives at this
-radio's 6 MHz CPU clock. That rate is the deciding number for whether
-1200 bps Bell 202 AFSK (1200/2200 Hz tones) is reachable: it needs to be
-comfortably above a few kHz for clean tone synthesis at those
-frequencies. Not yet established -- needs either the µPD78312A's A/D
-conversion timing (datasheet) or a bench measurement of the actual tick
-rate (e.g. scope `P34`/the `QT`/`DQT` net while a CTCSS tone is active).
-`[OPEN]`
+**The tick rate: resolved.** The periodic interrupt driving this is
+chained off the A/D converter's conversion-complete interrupt rather than
+a named timer, and once tone generation is active nothing in that code
+path rewrites the A/D mode register again -- consistent with the A/D
+being left to free-run continuously, purely as a convenient
+periodic-interrupt source. The µPD78312A manual gives that hardware's
+conversion time directly (sec. 4.5.2, Table 4-16): `conversion speed =
+180/f_CLK` us, with `FR=0` being the only valid setting above 4 MHz. At
+this radio's 6 MHz CPU clock that is a flat **30 us per conversion**.
+Select mode (sec. 4.5.3) re-arms the next conversion on the same channel
+the instant the result latches and `ADF` sets, with no CPU action needed
+-- exactly what "ADM never rewritten again" in the disassembly implies.
+So the DDS ticks at roughly `1/30us` ~= **33 kHz**, less whatever the ISR
+itself costs (tens of CPU cycles at 6 MHz -- a few more us at most), so
+call it a comfortable 20-30 kHz either way. `[DS][FW][RE]`
+
+That is 10-25x oversampling on the higher (2200 Hz) Bell 202 tone -- far
+more than clean AFSK needs. Combined with 13.3.1 (the coupling filter
+passes both tones, ~4 dB apart) and 13.3.3 (the output level is a
+software-read constant, not a hardware ceiling), there is no remaining
+hardware or firmware obstacle this trace has found to synthesizing 1200
+bps Bell 202 AFSK for transmit through the `P34`/`QT`/`DQT` path. `[RE]`
 
 ### 13.3.3 Output level is a per-mode EEPROM calibration byte, multiplied in every tick
 
