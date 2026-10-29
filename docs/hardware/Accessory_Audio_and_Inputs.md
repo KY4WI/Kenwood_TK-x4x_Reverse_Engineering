@@ -409,28 +409,42 @@ not fixed-function CTCSS/DCS logic -- structurally the same idea as the
 TK-x80's DAC-based tone synthesizer, just through PWM instead of a
 parallel DAC. `[FW][RE]`
 
-**The tick rate: resolved.** The periodic interrupt driving this is
-chained off the A/D converter's conversion-complete interrupt rather than
-a named timer, and once tone generation is active nothing in that code
-path rewrites the A/D mode register again -- consistent with the A/D
-being left to free-run continuously, purely as a convenient
-periodic-interrupt source. The µPD78312A manual gives that hardware's
-conversion time directly (sec. 4.5.2, Table 4-16): `conversion speed =
-180/f_CLK` us, with `FR=0` being the only valid setting above 4 MHz. At
-this radio's 6 MHz CPU clock that is a flat **30 us per conversion**.
-Select mode (sec. 4.5.3) re-arms the next conversion on the same channel
-the instant the result latches and `ADF` sets, with no CPU action needed
--- exactly what "ADM never rewritten again" in the disassembly implies.
-So the DDS ticks at roughly `1/30us` ~= **33 kHz**, less whatever the ISR
-itself costs (tens of CPU cycles at 6 MHz -- a few more us at most), so
-call it a comfortable 20-30 kHz either way. `[DS][FW][RE]`
+**The tick rate: resolved -- correcting an earlier wrong guess in this
+section.** An earlier pass here read `sub_8B36`'s `ADM`/`ADIC` writes as
+proof the tick was chained off the A/D converter, and estimated ~30
+us/33 kHz from the A/D's conversion-time spec on that basis. That was
+wrong: the interrupt *vector* `sub_8B36` is actually installed on (0x800E,
+confirmed against the real hardware vector layout) is **TMF0 -- on-chip
+8-bit Timer 0 -- not ADF**. The real ADF vector (0x8028) is a different
+routine entirely, `sub_8B15`, which is the *receive*-side `AN0`/`LSDIN`
+CTCSS/DCS discriminator (13.4) -- it reads `ADCR` and compares it to
+mid-scale, nothing to do with TX tone generation. The `ADM`/`ADIC` writes
+in `sub_8B36` are real, but they're a one-time side effect on that TMF0
+handler's very first entry (guarded by `ram_FE78.7`): it arms that
+unrelated receive subsystem once and never touches `ADM` again, which is
+what made the ADC theory look plausible from the DDS code alone. `[FW][RE]`
 
-That is 10-25x oversampling on the higher (2200 Hz) Bell 202 tone -- far
-more than clean AFSK needs. Combined with 13.3.1 (the coupling filter
-passes both tones, ~4 dB apart) and 13.3.3 (the output level is a
-software-read constant, not a hardware ceiling), there is no remaining
-hardware or firmware obstacle this trace has found to synthesizing 1200
-bps Bell 202 AFSK for transmit through the `P34`/`QT`/`DQT` path. `[RE]`
+The actual driver, traced through `TMC0`/`MD0` (sec. 4.3.4 of the
+manual): `TMC0 = 0x80` selects interval-timer mode, free-running (no
+external trigger), `TM0` clocked at `f_CLK/6` = **1 MHz** at this radio's
+6 MHz CPU clock, counting up to the 16-bit reload value in `MD0` before
+`TMF0` fires and `TM0` resets. The arming call is `sub_B05E`, the single
+shared entry point both the QT/DQT frequency-word path and the LTR
+tone-table path converge on before falling into `loc_B0CC`: `MD0 =
+0x005C` (92 decimal), `TM0 = 0`. **92 us per conversion = a flat 10.87
+kHz tick, for all three modes alike.** `[FW][RE]`
+
+That's about 4.9x oversampling on the higher (2200 Hz) Bell 202 tone --
+noticeably less generous than the earlier wrong estimate, but still a
+real, comfortable margin, and it lands right in the range actual
+hardware TNCs use for AFSK generation (9600-19200 Hz is typical), which
+is a better sanity check than the suspiciously round 33 kHz this section
+used to claim. Combined with 13.3.1 (the coupling filter passes both
+tones, ~4 dB apart) and 13.3.3 (the output level is a software-read
+constant, not a hardware ceiling), the conclusion is unchanged: no
+remaining hardware or firmware obstacle this trace has found to
+synthesizing 1200 bps Bell 202 AFSK for transmit through the
+`P34`/`QT`/`DQT` path. `[RE]`
 
 ### 13.3.3 Output level is a per-mode EEPROM calibration byte, multiplied in every tick
 
