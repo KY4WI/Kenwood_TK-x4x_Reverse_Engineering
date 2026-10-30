@@ -109,8 +109,7 @@ finds the channel record with `CALL DE9Ah`, advances to TX word offset
 path. The patch also changes the separate dealer-test TX path. The
 **authoritative executable patch windows for each recognized firmware
 revision** are in the Toolkit's `fw_db[]`; do not assume AB00 addresses
-apply blindly to every revision. A historical draft overran its patch
-window and **must not** be reused; see [legacy patch notes](../../tools/legacy/README.md).
+apply blindly to every revision.
 
 ## 3. Dealer/alignment test frequencies are separate
 
@@ -175,23 +174,7 @@ The TK-840's 300 MHz coding base likewise **does not imply** that a
 TK-840 can receive or transmit at 300 MHz; its current CHIRP range
 is narrower.
 
-## 5. Why older 940/941 codeplugs may be wrong
-
-Earlier interpretation of the TK-940/941 frequency word used a
-**441.4 MHz base** and permitted 800–851 MHz programming. This was
-incorrect: it included **bit 15**, which the stock firmware clears,
-in the frequency arithmetic. Programming a word under that old
-assumption would cause the stock firmware to tune to **a different
-frequency** than the operator intended. Existing files created with
-that interpretation should be reviewed before being written to a radio.
-
-The confirmed interpretation is **851 MHz + the lower 15 bits ×
-12.5 kHz**. The updated driver deliberately rejects conventional
-frequencies below 851 MHz rather than silently writing mismatched
-words. The TK-940/941 raw codeplugs share the same representation,
-but their RF hardware and stock transmit offsets differ.
-
-## 6. Scope, evidence, and follow-on research
+## 5. Scope, evidence, and follow-on research
 
 These are **firmware-traced** stock behavior findings for the analyzed
 8355 and AB00 images, not a certification of every RF implementation
