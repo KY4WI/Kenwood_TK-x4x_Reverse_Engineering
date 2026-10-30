@@ -2,8 +2,7 @@
 
 ## Reverse-engineered technical reference
 
-**Document revision:** 2026-09-20  
-**Status:** Experimental, substantially decoded for conventional operation  
+**Status:** Conventional format verified on TK-840 hardware; some commercial and LTR fields remain incompletely decoded  
 **Verified radio firmware:** TK-840 firmware checksum `8355`  
 **Codeplug size:** `0x1800` bytes (6144 bytes)  
 **Radio CPU address range:** `0xE600-0xFDFF`  
@@ -313,7 +312,7 @@ frequency_MHz = 300.000 + code * 0.0125
 
 The normal TK-840 therefore uses a fixed **12.5 kHz PLL raster**.
 
-A hardware test conclusively demonstrated this: a code value that had previously been interpreted using an incorrect variable-grid theory caused the radio to transmit at the exact frequency predicted by the 12.5 kHz formula.
+Hardware testing confirmed that the radio transmitted at the frequency predicted by this fixed 12.5 kHz formula.
 
 ### No-frequency sentinel
 
@@ -810,7 +809,7 @@ then modified as follows:
 - store the eight-character System name at `+06-+0D`
 - set pointer bit 14 according to System Enabled/Lockout state
 
-The experimental CHIRP driver defaults a newly activated System to:
+The released CHIRP driver defaults a newly activated System to:
 
 ```text
 System Enabled = yes
@@ -851,7 +850,7 @@ Global AUX byte 0x0067 bits 3-7
 
 The CHIRP driver's **Normalize unused bits** policy sets these to `1` before upload.
 
-This policy is intentionally firmware-specific. A different TK-840 firmware revision could theoretically use one of these bits. That is one reason the driver should remain marked experimental until broader firmware coverage exists.
+This policy is firmware-specific: a different TK-840 revision might assign meaning to these bits. Preserve unverified fields when handling other firmware revisions.
 
 ---
 
@@ -884,7 +883,7 @@ Current safe rule:
 
 - conventional Systems can be structurally edited/repacked
 - active LTR Systems should be treated as opaque
-- the experimental CHIRP driver refuses variable structural editing on a codeplug containing active LTR Systems
+- the released CHIRP driver refuses variable structural editing on a codeplug containing active LTR Systems
 
 Known KPG LTR-only or primarily trunking-oriented features include Scan Weight, Auto Telephone Search, fixed IDs, block ID ranges, System Search, Free System Ring Back, Clear To Talk and Repeater Information.
 
