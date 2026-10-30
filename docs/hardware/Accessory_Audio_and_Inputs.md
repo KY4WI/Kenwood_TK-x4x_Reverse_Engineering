@@ -514,10 +514,8 @@ The exact stock threshold/window algorithm is still `[OPEN]` and should be
 recovered from the application firmware or measured before copying Kenwood's
 behavior.
 
-The original `HARDWARE_COMMUNICATION.md` contained a deliberately marked
-placeholder that read an assumed `SFR8(0xFF04)` bit as squelch. That sketch is
-obsolete and should not be reused. The important correction is that `P30/CI0`
-is a **noise-pulse source**, not a proven binary carrier GPIO.
+`P30/CI0` is a **noise-pulse source**, not a proven binary carrier GPIO.
+Do not model squelch as a simple bit read from an assumed port register.
 
 **Searched and not found (recorded so this isn't re-searched from scratch):**
 a direct search of both the external firmware and mask ROM for any bit-test

@@ -10,9 +10,7 @@ This document merges project evidence from:
 - MC145190, M62363, AT24C02, AT29C256, and 4094-family datasheets;
 - the common `0000-1FFF` mask-ROM dump and decoded `1Fxx` resident services;
 - the analyzed TK-840 external firmware (`8000-FDFF`) and disassembly;
-- `HARDWARE_COMMUNICATION.md` / the 2026-09-27 C-facing bring-up notes;
-- `TK-840_Replacement_Firmware_Hardware_Interface.md`;
-- `TK840_HARDWARE_PROGRAMMING_REFERENCE.md`;
+- the consolidated hardware reference and the project's documented bench probes;
 - current panel/button/display reverse engineering through 2026-09-29,
   including stock-firmware annunciator command tracing;
 - the NEC 78K/III Series Instructions User's Manual (covers the
@@ -51,7 +49,9 @@ strongly a specific fact is supported.
 
 ---
 
-# 27. Revision history
+# 27. Research milestones
+
+The dates below record technical discoveries and bench validation, not earlier public software releases.
 
 ## 2026-09-27
 
@@ -62,8 +62,7 @@ PTT, panel application bytes, volume control, and squelch still contained large
 
 ## 2026-09-29
 
-Merged the later hardware-programming reference and hardware-interface work into
-one document. Major updates include:
+Documented and cross-checked the following hardware findings:
 
 - full boot/memory/vector contract and fixed application entries;
 - baseline mask-ROM GPIO state;
@@ -298,8 +297,7 @@ different from the rest of the connector.
 - `docs/hardware/Front_Panel_Link.md`: the microphone-jack lines are not the
   panel link; the mask ROM's `15C8h` as the simplest way to show 8
   characters.
-- Section 11.10: the 2026-10-08 bench results, which had stayed in an old
-  working copy of this document: the icon on/off/flash table, the
+- Section 11.10: the 2026-10-08 bench results: the icon on/off/flash table, the
   whole-display bytes `0x80`-`0x83`, `0xB0` clear, the built-in strings
   `0x85`/`0x86`, `0x8B` + 2 bytes, `0x8E` turning TX off, the `0xB3`
   lockups, and why the loader's PROGRAM screen flashes (`0x82`). Section
@@ -340,16 +338,15 @@ different from the rest of the connector.
   TK-940/941's 17-bit D and bases.
 - Section 8.3: STR set = receive VCO, clear = transmit (TK-840 image).
 
-## 2026-10-16 (compiler fix; UART speeds; old notes merged)
+## 2026-10-16 (compiler correction and UART bench results)
 
 - Section 12.4: the hardware UART sends clean text at 1200-115200 bit/s
   (bench); the bench radio's CN3 tap; the earlier wrong results explained
   by the vbcc string bug (the earlier vbcc backend revision `2945d2e`).
-- Section 1.5: the "persistent serial glitch" was that same bug.
-- From the old working copy (now removed; git history has it): CLONE
-  mode's start in 10.5, the key bytes' bit structure in 11.8, the TA/"(S)"
-  test procedure in 11.10, the mask ROM vector trace in 14.1 (squelch is
-  not in the mask ROM), services `009E`/`0144` in 18.
+- Section 1.5: the serial glitch was traced to that compiler issue.
+- CLONE-mode entry, the front-panel key-byte encoding, the TA/"(S)"
+  test procedure, the mask-ROM vector trace, and resident services
+  `009E`/`0144` were documented in their respective reference sections.
 - Names for the panel bytes (`include/panel_codes.h`) shown next to the
   hex in 11.8, 11.10 and 11.11.
 - Section 4 and 4.1: the schematic's pin labels (Dave), and the mic jack

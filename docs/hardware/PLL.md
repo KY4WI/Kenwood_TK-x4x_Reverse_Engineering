@@ -71,10 +71,6 @@ come back swapped: afterwards `FE20h`-`FE22h` do not hold D any more. Nothing
 reads them before the next tune rebuilds them, so it does no harm, but a
 caller must not expect D (or its own HL) back. `[FW]`
 
-An earlier version of this document and the phase1 probe put N at bits
-12-21 and A at bits 6-11, a guess from a datasheet; that layout gives the
-chip a different divider and cannot lock.
-
 ## 6.3 Confirmed bit-bang primitive
 
 Stock firmware contains the equivalent of:
@@ -223,9 +219,7 @@ the routine goes on regardless once it gives up. This is consistent with
 exists anywhere in either ROM), so this confirms *sequencing* behavior more
 than it confirms "this is specifically the KEY-enable gate." `[FW][RE]`
 
-The older communication draft contained a provisional C `pll_locked()` sketch
-that treated `P32` as an ordinary port bit. That is now supported rather than
-merely plausible: a `pll_locked()` helper reading `SFR8(0xFF03) & 0x04` and
+A `pll_locked()` helper reading `SFR8(0xFF03) & 0x04` and
 treating a nonzero result as locked matches both traced call sites. The
 remaining `[OPEN]` item is the *electrical* polarity at the CI1 pin itself
 (does the PLL's own LD output directly drive high-for-locked, or is there an

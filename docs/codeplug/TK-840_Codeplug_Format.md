@@ -250,7 +250,7 @@ Firmware tracing shows that the conventional code path skips these fields. Consu
 
 They should therefore be preserved rather than reinterpreted or normalized. Their lack of conventional use is proven for firmware 8355, but another firmware revision or related model could potentially use them differently.
 
-A canonical/new conventional header currently used by the experimental CHIRP driver begins:
+A canonical/new conventional header currently used by the released CHIRP driver begins:
 
 ```text
 FE FF FE FF FF FF
@@ -512,7 +512,7 @@ space
 
 KPG's editor notably rejects `.` for this field.
 
-Lower-case input may be accepted by software, but the TK-840 display does not render it properly. The experimental CHIRP driver stores names upper-case.
+Lower-case input may be accepted by software, but the TK-840 display does not render it properly. The released CHIRP driver stores names upper-case.
 
 Unused trailing characters may be `00` or `FF`.
 
@@ -693,53 +693,17 @@ KPG exposes global settings in this general feature block including:
 
 Not all of these have been assigned confidently to exact codeplug bytes/bits, so software should preserve these bytes unless a particular encoding has been proven.
 
-### `0x0070` - CHIRP-private preferences, optional
+### `0x0070-0x0079` - PROGRAM-mode password
 
-`0x0070` is **not a native Kenwood field as currently understood**. Firmware 8355 contains no direct reference to CPU address `E670`, and the observed KPG-created codeplug stores `FF` there.
+These ten bytes are used by the resident mask-ROM PROGRAM-mode password
+check. KPG-25D sends command `04h` followed by the password bytes;
+the monitor compares them with flash addresses `E670-E679`.
+An unprotected radio normally stores `FF` in all ten positions.
 
-The experimental CHIRP driver can optionally use this byte for private policy metadata.
-
-This use remains experimental because another TK-840 firmware revision could theoretically assign a meaning to this byte.
-
-#### Metadata format
-
-```text
-FF       = no CHIRP metadata
-F0-F7    = current 3-payload-bit format
-F8-FE    = reserved
-E0-EF    = future 4-payload-bit format
-C0-DF    = future 5-payload-bit format
-80-BF    = future 6-payload-bit format
-00-7F    = future 7-payload-bit format
-```
-
-This is a variable-width prefix scheme. Preference bit meanings never move as the format expands.
-
-Current payload bits:
-
-| Bit | Meaning |
-|---:|---|
-| 0 | Normalize firmware-proven unused bits before upload |
-| 1 | Disable commercial channel features before upload |
-| 2 | Show commercial channel options in CHIRP |
-
-A future driver that needs bit 3 can move from the `F0-F7` class to the `E0-EF` class without changing the meanings of bits 0-2.
-
-Older drivers are expected to ignore unknown higher preference bits and preserve the existing prefix/unknown bits when modifying only preferences they understand.
-
-If no metadata exists, the current ham-oriented defaults are:
-
-```text
-Normalize unused bits          = ON
-Disable commercial features    = ON
-Show commercial options        = OFF
-```
-
-When **Store CHIRP preferences in codeplug** is disabled, RC1 restores `0x0070` to `FF`. When it is enabled, only preference bits understood by that driver are changed; any future-format prefix and unknown preference bits are preserved.
-
-### `0x0071-0x0079`
-
-Observed as `FF` in the reference codeplug. Firmware 8355 has no direct literal references to CPU addresses `E671-E679`; preserve these bytes because indirect/table-driven use has not been ruled out.
+**Preserve this field.** It is radio programming/security data, not
+available space for custom metadata. The released CHIRP driver keeps its
+driver-only preferences in the normal `.img` metadata trailer, **outside**
+the raw codeplug, and never writes them to these radio addresses.
 
 ### `0x007A`
 
@@ -949,7 +913,7 @@ The verified programming handshake is:
 
 When leaving PROGRAM mode, the final `E` command has been observed to return no byte on real TK-840 hardware; software should not require a final ACK.
 
-Codeplug reads/writes use `0x80`-byte blocks. The experimental CHIRP uploader:
+Codeplug reads/writes use `0x80`-byte blocks. The CHIRP uploader:
 
 1. enters PROGRAM mode once
 2. reads the live `0x1800`-byte image
@@ -1020,9 +984,6 @@ The TK-840 (8355) and TK-940/941 (AB00) firmware use the same code to find and l
 - LTR System/group block format
 - exact purpose of `0x007A`
 - all bytes from `0x00A8-0x00FF`
-### CHIRP-private / not Kenwood-native
-
-- optional preference metadata at `0x0070`
 
 ---
 
@@ -1058,25 +1019,12 @@ Where these sources disagree or where only one source supports an interpretation
 
 ---
 
-## 27. Terminology and accuracy-pass notes
-
-This revision was checked against the v39-rc1 driver, the saved reference codeplug, firmware 8355, and the previously decoded KPG-25D behavior. Changes/corrections made in this pass:
-
-- Replaced Kenwood QT/DQT terminology with **CTCSS (PL)** and **DCS**.
-- Uses **channel** for conventional operation instead of Kenwood's **group** terminology except where an exact KPG/factory label is useful.
-- Clarified that `+05/+06` and `+07/+08` are the TX and RX CTCSS/DCS words, without relying on Kenwood's "encode/decode" naming.
-- Confirmed the timeout-byte order as `0x0061 = telephone/interconnect TOT` and `0x0062 = normal TX/dispatch TOT`. An earlier conversational description had those two reversed; the byte map in this document is the corrected mapping.
-- Rechecked the frequency examples and the seven `0x0080` table entries against the 12.5 kHz formula; the values shown are correct.
-- Rechecked packed-pool capacity math; the capacity table is correct.
-- Rechecked `0x0070`: firmware 8355 has no direct literal reference to `E670`. The surrounding audit found direct references at `E67B` and `E67C`, but none at `E671-E679` or `E67D-E67F`; wording now distinguishes that from proving those bytes universally unused.
-- Added the observed PROGRAM-mode exit behavior: a final `E` may produce no ACK.
-
-## 28. Open reverse-engineering items
+## 27. Open reverse-engineering items
 
 The conventional format is sufficiently decoded for normal amateur use, but these areas remain worthwhile future work:
 
 - compare codeplugs from additional TK-840 firmware revisions
-- confirm whether firmware revisions other than 8355 ignore the same unused bits and `0x0070`
+- confirm firmware-revision-dependent unused-bit behavior without changing the PROGRAM-mode password field
 - fully map remaining Feature Option bits around `0x006A-0x006F`
 - locate Minimum Volume and Display Character precisely
 - completely decode Data System/Group and the per-channel Data feature's signal-path effects
@@ -1084,4 +1032,4 @@ The conventional format is sufficiently decoded for normal amateur use, but thes
 - map LTR System/group structures
 - compare TK-940 and TK-941 codeplugs to determine how much of this layout is shared
 
-Until broader firmware testing is available, software based on this map should retain an **experimental** designation and preserve unknown fields wherever possible.
+Unknown or model-specific fields should be preserved until their behavior is independently decoded and verified.

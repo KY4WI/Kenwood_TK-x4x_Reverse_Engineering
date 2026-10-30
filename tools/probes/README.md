@@ -195,21 +195,15 @@ two-byte panel command, the need for the mode-announce before the display
 will show anything) were each found the hard way once already, and are
 written up there.
 
-## History
+## Research artifacts
 
-The probes were written in the custom firmware repository and moved here
-(benchtest, panelprobe, uartprobe and baudsweep on 2026-10-15; stage1,
-selftest and phase1 on 2026-10-16; selftest was then renamed keytests and
-moved to the custom firmware's `examples/`, keeping only its proven parts;
-its EEPROM results are now in phase1's output); the custom firmware
-repository's
-history has every earlier version (the C probes' main sources were
-`main.c` there, and phase1 kept its compiled `.s` files instead of
-building them). Every probe built byte-for-byte the same as before the
-move; the C probes were rebuilt on 2026-10-16 with the VARADR fix (vbcc
-`2945d2e`), with no source change.
+These probes preserve original source and associated bench observations for
+reproducing hardware experiments. The shared `common/` helpers implement
+resident-mask-ROM calls, UART/debug output, and watchdog services. Functions
+validated on hardware may also be incorporated into the separate
+[custom firmware project](https://github.com/KY4WI/Kenwood_TK-x4x_Custom_Firmware).
 
-`common/` started as a copy of that repository's `resident_api.*` and
-`debug_serial*`. It is now the working copy: the probes use it, and
-pieces that pass a bench test are copied the other way, into the custom
-firmware's library.
+The C probes depend on the corrected NEC 78K/III compiler and assembler
+backends in the [published toolchain](https://github.com/KY4WI/NEC_78K3_Toolchain).
+Build using the tools documented above; previous compiler code-generation
+bugs are described where relevant to the bench results.
