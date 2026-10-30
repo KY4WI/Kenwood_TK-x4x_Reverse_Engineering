@@ -101,7 +101,7 @@ Changing this lower bound would require a **different frequency
 encoding and matching firmware changes** (and corresponding CHIRP/Toolkit
 support), not simply widening the CHIRP frequency selector.
 
-**AB00 patch implementation evidence:** For the analyzed TK-941 image
+**B5EC patch implementation example:** For the analyzed TK-941 image
 with firmware byte sum `B5ECh`, the normal-channel TX patch replaces
 16 bytes at `9C6Eh–9C7Dh` (firmware-file offset `1C6Eh`). The patch
 finds the channel record with `CALL DE9Ah`, advances to TX word offset
