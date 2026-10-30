@@ -29,10 +29,13 @@
 ; known 16-bit pattern into AX and checks it back immediately (not just
 ; holding it steady -- a corruption that only shows up mid-write needs
 ; to be caught mid-write), 65536 times between each status line. Bank 7
-; (RB7, RAM FE80h-FE8Fh) is dedicated to the ISR -- picked because it
-; is architecturally unused by stock firmware (confirmed: zero SEL
-; instructions anywhere in the 26 KB mask ROM) and does not overlap
-; this probe's own working set. No PUSH/POP of AX anywhere in the ISR;
+; (RB7, RAM FE80h-FE8Fh) is dedicated to the ISR -- picked because the
+; mask ROM never names any address in FE80h-FEAFh (checked 2026-10-29)
+; and this probe's own working set does not touch it. NOTE: the bank
+; windows are plain RAM, and the STOCK APP uses nearly all of FE80h-
+; FEECh as ordinary variables (FE84h/FE85h is its DDS phase
+; accumulator), so this trick only works in an image that replaces the
+; stock app, never alongside it. No PUSH/POP of AX anywhere in the ISR;
 ; entry is "SEL RB7", exit is "SEL RB0", full stop.
 ;
 ; A live heartbeat (ISR fire count) and the canary failure count are
@@ -350,13 +353,15 @@ canary_ok:
 ; every TMF0 tick (92 us/10.87 kHz, armed above). Uses SEL RB7/SEL RB0
 ; instead of PUSH {ax}/POP {ax} to keep mainline's AX untouched.
 ;
-; Bank 7 is RAM FE80h-FE8Fh -- architecturally the CPU's own register
-; bank 7 (general register chapter, manual sec. 3.2.2), confirmed
-; unused anywhere in the 26 KB stock mask ROM (zero SEL instructions in
-; the whole image). This ISR's own AX therefore lives in FE84h/FE85h
-; the whole time, completely separate storage from whatever mainline's
-; AX (bank 0, FEF0h-FEF1h) currently holds -- that separation, not any
-; save/restore discipline, is what makes skipping PUSH/POP safe here.
+; Bank 7 is RAM FE80h-FE8Fh -- the CPU's own register bank 7 (manual
+; sec. 3.2.2, Figure 3-5: bank n starts at FEF0h-16*n, R0 first, so
+; X=FE80h, A=FE81h; AX=RP0=R1:R0). The mask ROM never names any address
+; in FE80h-FEAFh (checked 2026-10-29). This ISR's own AX therefore lives
+; in FE80h/FE81h the whole time, completely separate storage from
+; whatever mainline's AX (bank 0, FEF0h/FEF1h) currently holds -- that
+; separation, not any save/restore discipline, is what makes skipping
+; PUSH/POP safe here. (An earlier version of this comment said FE84h/
+; FE85h; that is RP2=R5:R4, not AX. Comment-only error, no code effect.)
 ;
 ; Clobbers (from the interrupted code's point of view): nothing. A, X
 ; and C are all bank-7's own copies while this runs; mainline's A, X, C

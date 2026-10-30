@@ -13,11 +13,25 @@ The stock mask ROM never once executes a `SEL` instruction (confirmed by
 grepping the full disassembly listing) -- all 8 register banks exist in
 silicon (a 128-byte window at `FE80h`-`FEFFh`, 16 bytes per bank,
 switched by a 2-byte `SEL RBn`) but Kenwood's own firmware only ever uses
-bank 0. That leaves banks 1-7 completely free for us to use, and `SEL
-RBn` is itself only 2 bytes/cheap, same ballpark as a `PUSH`/`POP` pair,
-so an ISR that needs `AX` as scratch could instead switch to an unused
-bank, use `AX` there freely, and switch back -- never touching the
-caller's `AX` at all, with no stack traffic.
+bank 0. `SEL RBn` is itself only 2 bytes, same ballpark as a
+`PUSH`/`POP` pair, so an ISR that needs `AX` as scratch could instead
+switch to another bank, use `AX` there freely, and switch back -- never
+touching the caller's `AX` at all, with no stack traffic.
+
+**Caveat (corrected 2026-10-29; an earlier version of this section said
+banks 1-7 were "completely free", which was too strong).** Not using
+`SEL` does not make a bank free: each bank is 16 bytes of ordinary RAM
+(bank *n* starts at `FEF0h` - 16*n; bank 7 = `FE80h`-`FE8Fh`, bank 0 =
+`FEF0h`-`FEFFh`; X is the first byte, so bank 7's `AX` is `FE80h`/
+`FE81h`). The stock *app* uses nearly all of `FE80h`-`FEECh` as plain
+variables (bank 7's `FE84h`/`FE85h` is its DDS phase accumulator), so
+this technique can't coexist with stock app code. The *mask ROM* never
+names any address in `FE80h`-`FEAFh` (banks 7, 6, 5); it does use
+`FEBFh`, `FEC0h`-`FECFh` (bank 3) and `FED3h`-`FEDFh` (bank 2), so those
+banks are not safe in an image that calls the mask ROM's routines. This
+probe replaces the stock app and uses bank 7, so it is consistent;
+indirect accesses through pointers could not be ruled out by this
+check, which only saw names the listing prints.
 
 This probe repoints the real DDS interrupt (TMF0, timer 0 -- see
 `docs/hardware/Accessory_Audio_and_Inputs.md` section 13.3.2 for how that

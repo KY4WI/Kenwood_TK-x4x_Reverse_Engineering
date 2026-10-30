@@ -345,6 +345,68 @@ after the last kick.
 
 ---
 
+## 19.4 Register banks, `BRKCS` and context switching
+
+Written 2026-10-29 while following up the `bankisr` probe idea
+([`tools/probes/bankisr/`](../../tools/probes/bankisr/bankisr.md)).
+
+**Where the banks are.** `[DS]` (manual 3.2.2, Figure 3-5, p. 3-10; Table
+3-2, p. 3-11) The 8 banks are 16 bytes each in `FE80H`-`FEFFH`: bank *n*
+starts at `FEF0H` - 16*n, so bank 7 is `FE80H`-`FE8FH` and bank 0 is
+`FEF0H`-`FEFFH`. `R0` is the first byte of a bank and `R15` the last:
+`X`=R0, `A`=R1, `C`=R2, `B`=R3, `R4`/`R5`/`R6`/`R7` (no names while
+`RSS`=0; they are `X`/`A`/`C`/`B` when `RSS`=1), `VP`=R9:R8, `UP`=R11:R10,
+`E`/`D`/`L`/`H`=R12-R15. `AX`=`RP0`=R1:R0, so bank 7's `AX` is `FE80H`/
+`FE81H`; bank 0's is `FEF0H`/`FEF1H`.
+
+**The banks are ordinary RAM.** `[FW][MASK]` Not using `SEL` does not
+make a bank free. By the names the listings print, the stock app uses
+nearly all of `FE80H`-`FEECH` as variables (bank 7's `FE84H`/`FE85H` is
+the DDS phase accumulator). The mask ROM names `FEBFH`, `FEC0H`-`FECFH`
+(bank 3) and `FED3H`-`FEDFH` (bank 2), and never names anything in
+`FE80H`-`FEAFH` (banks 7, 6, 5). `[OPEN]` Accesses through a pointer
+register are not visible to that check. A bank is only usable in an image
+that replaces the stock app, and (for banks 1-4) only where the mask ROM
+routines that touch it are not called.
+
+**Hardware context switching.** `[DS]` (manual 5.3, pp. 5-25 to 5-28) A
+bank can be used as a complete, self-contained subroutine/ISR context:
+
+- A maskable interrupt whose `xxIC` bit 4 (`xxCSEn`) is set, taken with
+  `EI`, selects the register bank *corresponding to the priority level* of
+  its group (the 78312A text says priority level; the related 78355/356
+  manual says the low three bits of the vector-table word, so do not
+  assume the two are the same). The 16-bit entry address must already be
+  stored in the bank's `R5:R4` (an ordinary RAM write). The hardware
+  exchanges it with `PC`, saves the old `PSW` in `R7:R6`, and sets
+  `RSS`=0 and `IE`=0. Nothing goes on the stack. 11 states from request
+  to the first instruction of the routine.
+- `BRKCS RBn` (2 bytes) does the same thing on demand, with the bank
+  named in the instruction. A routine entered this way is a "subroutine"
+  whose registers persist between calls.
+- Return is `RETCS !addr16` (3 bytes) only: it restores `PC` from `R4:R5`
+  and `PSW` from `R6:R7`, **stores `addr16` back into `R4:R5` as the next
+  entry address**, and resets the highest-priority `ISPR` bit. After a
+  `BRKCS` (no `ISPR` bit was set) the manual says to execute `SET1 CCW.0`
+  (the `EOS` flag) immediately before `RETCS`, or interrupt nesting
+  control is destroyed. Using any other return after a context switch
+  breaks later interrupts.
+- One saved `PC` per bank: a bank's routine can not be re-entered or call
+  itself.
+- The project's opcode table has `BRKCS` and `RETCS` only; the 78352/
+  78356-family manuals also document a `RETCSB`, which is not in the
+  78312A table.
+
+**In the stock firmware.** `[FW]` There is no `SEL`, `BRK`, `BRKCS` or
+`RETCS` anywhere in the TK-840 image. Every direct immediate write to an
+`xxIC` register in the app and mask ROM listings has bit 4 clear (values
+`00H`, `40H`, `41H`, `42H`, `47H`, `80H`) and there is no bit-4 operation
+on any of them, so every interrupt is a normal vectored one.
+
+`[OPEN]` Nothing in 19.4 has been tried on hardware, and the states for
+`BRKCS`/`RETCS` have not been looked up, so whether this beats `CALL`/
+`RET` or `PUSH`/`POP` in cycles is unknown.
+
 # 20. Useful SFR addresses already used by project code
 
 | Symbol | Address | Notes |
