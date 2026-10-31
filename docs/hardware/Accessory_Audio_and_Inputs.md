@@ -126,21 +126,20 @@ same instruction block that contains the project's single confirmed `STBC`
 write (section 1.5): `[MASK]`
 
 ```asm
-00009e  mov  sfr[0x52], #0x04     ; SCC
-0000a1  mov  sfr[0x53], #0x4e     ; BRG = 78 decimal
-0000a4  sel  rb0
-0000a6  mov  stbc, #0x00          ; the same single STBC write documented in 1.5
-0000aa  mov  sfr[0x40], #0x07     ; MM (memory expansion mode)
-        ... (RFM, UDCC0/1, CRC, CUIM, CR11, PWM0/1, CPTM, FRCC, RTPC, MD1,
-             TMC0/1, ADM, TBM -- unrelated peripheral baseline in between)
-0000e9  mov  sfr[0x50], #0xcd     ; SCM, still inside the same unbroken
-                                   ; reset routine (ends in a bare `ret` at
-                                   ; 0000ecH)
+009E  mov  sfr[SCC], #0x04
+00A1  mov  sfr[BRG], #78          ; 78 = 0x4E
+00A4  sel  rb0
+00A6  mov  stbc, #0x00            ; the same single STBC write documented in 1.5
+00AA  mov  sfr[MM], #0x07         ; memory expansion mode
+      ... (RFM, UDCC0/1, CRC, CUIM, CR11, PWM0/1, CPTM, FRCC, RTPC, MD1,
+           TMC0/1, ADM, TBM -- unrelated peripheral baseline in between)
+00E9  mov  sfr[SCM], #0xCD        ; still inside the same unbroken reset
+                                  ; routine (ends in a bare `ret` at 00ECH)
 ```
 
 The mask ROM also contains its own low-level byte-primitive instructions
-for this UART (`mov sfr[0x57], a` at mask-ROM address `0x558`, `mov a,
-sfr[0x56]` at `0x579`). `[MASK]`
+for this UART (`mov sfr[TXB], a` at mask-ROM address `0558H`, `mov a,
+sfr[RXB]` at `0579H`). `[MASK]`
 
 **The external stock application independently confirms the same UART is a
 live, working serial port with a real protocol on it**, not merely
@@ -149,21 +148,19 @@ fixed addresses, both correctly servicing the watchdog while they wait
 (compare against the kick idiom in section 19.3): `[FW]`
 
 ```asm
-; 0x8178: send_byte(A) -- wait for STIC.IF (transmit done), then send
-008178  clr1  sfr[0xde].7      ; clear STIC.IF
-00817b  mov   sfr[0x57], a     ; TXB = A
-00817d  mov   wdm, #0x00
-008181  mov   wdm, #0x86       ; service watchdog while polling
-008185  bf    sfr[0xde].7, 0x817d
-008189  ret
+; sub_8178: send_byte(A) -- wait for STIC.IF (transmit done), then send
+8178  clr1  sfr[STIC].7        ; clear the transmit-done flag
+817B  mov   sfr[TXB], a
+817D  KICK_WDT                 ; service the watchdog while polling
+8185  bf    sfr[STIC].7, 817D
+8189  ret
 
-; 0x818a: recv_byte() -> A -- wait for SRIC.IF (receive full), then read
-00818a  mov   wdm, #0x00
-00818e  mov   wdm, #0x86       ; service watchdog while polling
-008192  bf    sfr[0xdc].7, 0x818a
-008196  clr1  sfr[0xdc].7      ; clear SRIC.IF
-008199  mov   a, sfr[0x56]     ; A = RXB
-00819b  ret
+; sub_818A: recv_byte() -> A -- wait for SRIC.IF (receive full), then read
+818A  KICK_WDT                 ; service the watchdog while polling
+8192  bf    sfr[SRIC].7, 818A
+8196  clr1  sfr[SRIC].7        ; clear the receive-full flag
+8199  mov   a, sfr[RXB]
+819B  ret
 ```
 
 These two addresses are not incidental -- they are exactly the resolved
@@ -180,26 +177,26 @@ at `0xb1d3`-`0xb22c`. It polls `SRIC.IF`, reads a command byte from `RXB`,
 and switches on it: `[FW]`
 
 ```asm
-00b1d3  bt   sfr[0xdc].7, 0xb1d9
-00b1d9  clr1 sfr[0xdc].7
-00b1dc  mov  a, sfr[0x56]        ; A = received command byte
-00b1e1  cmp  a, #0x43            ; 'C'
-00b1e3  bne  0xb202
-00b1e5  call 0xb333              ; unresolved validation/checksum helper
-00b1e8  bne  0xb200
-00b1ea  set1 0xfedc.2
-00b1ec  mov  a, #0x06            ; ACK
-00b1ee  callt [0x0017]           ; send_byte(0x06)
-        ... (RAM/state setup, then:)
-00b1fd  mov  sfr[0x52], a        ; SCC rewritten -- mode/baud changes here
-00b1ff  ret
+B1D3  bt   sfr[SRIC].7, B1D9
+B1D9  clr1 sfr[SRIC].7
+B1DC  mov  a, sfr[RXB]           ; A = received command byte
+B1E1  cmp  a, #'C'
+B1E3  bne  B202
+B1E5  call sub_B333              ; unresolved validation/checksum helper
+B1E8  bne  B200
+B1EA  set1 ram_FEDC.2
+B1EC  mov  a, #0x06              ; ACK
+B1EE  callt [callt_sub_8178]           ; send_byte(0x06)
+      ... (RAM/state setup, then:)
+B1FD  mov  sfr[SCC], a           ; SCC rewritten -- mode/baud changes here
+B1FF  ret
 
-00b202  cmp  a, #0x4f            ; 'O'
-        ... (structurally identical: validate, ACK, then rewrite SCC) ...
+B202  cmp  a, #'O'
+      ... (structurally identical: validate, ACK, then rewrite SCC) ...
 
-00b22c  clr1 0xfedc.2
-00b22e  mov  a, #0x15            ; NAK
-00b230  callt [0x0017]           ; send_byte(0x15) for any unrecognized byte
+B22C  clr1 ram_FEDC.2
+B22E  mov  a, #0x15              ; NAK
+B230  callt [callt_sub_8178]           ; send_byte(0x15) for any unrecognized byte
 ```
 
 `0x43`/`0x4f` (`'C'`/`'O'`) and the `0x06`/`0x15` ACK/NAK-style replies are
@@ -211,7 +208,7 @@ interpretation is an **accessory/data-terminal control protocol** -- consistent
 with the radio's MDT/data-accessory hardware -- but the exact purpose of
 `'C'`/`'O'` is still unproven. After a recognized command the UART's `SCC`
 register is rewritten, suggesting a mode or baud change within that accessory
-protocol. The exact post-ACK `SCC` value, the `0xb333` validation helper, and
+protocol. The exact post-ACK `SCC` value, the `sub_B333` validation helper, and
 any additional commands remain open and are recorded as open item 12 below.
 `[FW][RE][OPEN]`
 
