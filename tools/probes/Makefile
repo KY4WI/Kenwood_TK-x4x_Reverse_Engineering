@@ -58,7 +58,7 @@ clean:
 	@for dir in $(DIRECTORY_PROBES); do \
 	  for src in "$$dir"/*.c; do \
 	    [ -f "$$src" ] || continue; \
-	    generated="${src%.c}.s"; \
+	    generated="$${src%.c}.s"; \
 	    [ ! -f "$$generated" ] || rm -f "$$generated"; \
 	  done; \
 	done
