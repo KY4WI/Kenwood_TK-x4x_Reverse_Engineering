@@ -23,6 +23,24 @@ links to them, in issues, discussions or pull requests.
 | recover a radio whose firmware will not start | [Hard-brick recovery](docs/hardware/Hard_Brick_Recovery.md) |
 | recreate a commented disassembly from your own ROM/firmware | [How to generate a commented disassembly](docs/How_to_Generate_Commented_Disassembly.md) |
 | write your own firmware | [Replacement firmware guide](docs/hardware/Replacement_Firmware_Guide.md), then the [hardware probes](tools/probes/README.md) |
+| build or install hardware test probes | [Build and flash hardware probes](tools/probes/README.md#building) |
+
+## Build hardware probes
+
+With the [NEC 78K/III toolchain](https://github.com/KY4WI/NEC_78K3_Toolchain)
+built in a sibling checkout (or available on PATH), run these commands
+**from this repository's root**:
+
+```sh
+make list         # see all available hardware probes
+make panelprobe   # build just the panel probe
+make              # build all probes
+```
+
+Probe images are written beside their source, for example
+`tools/probes/panelprobe/panelprobe.bin`. See the
+[probe guide](tools/probes/README.md) before flashing a radio. A build
+does **not** flash anything automatically.
 
 ## Documents
 

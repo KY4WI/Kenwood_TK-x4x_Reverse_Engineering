@@ -11,10 +11,10 @@ which holds only proven code.
 
 A small probe is a single source file in this directory, with its image
 next to it: `benchtest.s` and `benchtest.bin`, plus `benchtest.md` for its
-notes. A probe that needs more than a file or two gets its own
-subdirectory, with its own `build.sh`; its main source is named after the
-directory (`panelprobe/panelprobe.c`), so its image is
-`panelprobe/panelprobe.bin`.
+notes. A multi-file probe has its own subdirectory and build recipe; its main
+source is named after the directory (`panelprobe/panelprobe.c`), so its
+image is `panelprobe/panelprobe.bin`. The Makefile discovers these probe
+directories automatically.
 
 | Probe | Source | What it tests |
 |---|---|---|
@@ -69,42 +69,67 @@ The toolchain repository contains the NEC 78K/III backend sources,
 the small vasm parser patch, and unmodified upstream source archives.
 No separate private vbcc, vasm, or vlink repositories are required.
 
-Then point the probes' build scripts at that `bin/` directory, either on
-`PATH` or with environment variables:
+Clone this repository alongside the toolchain, then build from the
+repository root. **No `PROBE=...` setting is needed.** The Makefile
+discovers all supported probes and their build recipes:
 
 ```sh
-VASM=/path/to/NEC_78K3_Toolchain/bin/vasm78k3_std ./build.sh benchtest   # single-file assembly probes
-VBCC=/path/to/NEC_78K3_Toolchain/bin/vbcc78k3 \
-VASM=/path/to/NEC_78K3_Toolchain/bin/vasm78k3_std \
-VLINK=/path/to/NEC_78K3_Toolchain/bin/vlink \
-    ./panelprobe/build.sh                                                # a probe in a subdirectory
+git clone https://github.com/KY4WI/Kenwood_TK-x4x_Reverse_Engineering.git
+cd Kenwood_TK-x4x_Reverse_Engineering
+make list          # list every discovered probe
+make panelprobe    # build only panelprobe
+make               # build ALL probes
 ```
 
-- `build.sh NAME` assembles `NAME.s`, `NAME.S` or `NAME.asm` here into
-  `NAME.bin`. A single-file C probe would need a crt0 and a linker
-  script, so for now C probes get a subdirectory.
-- **History, for context, not something you need to chase down
-  yourself:** earlier vbcc passed a string's contents where its address
-  was meant (the cause of the old "PQRSTUVW" display), and an earlier
-  vasm swapped the source/destination bytes of the two-short-address
-  instructions (`MOV saddr,saddr'` and relatives). Both are already fixed
-  in the published toolchain repository -- there is no earlier revision
-  to avoid, just build from what's published there.
-  Shared code is in [`common/`](common/): `resident_api` (C wrappers for
-  the mask ROM's `1Fxxh` entries), `uart` and `debug_uart` (debug output
-  on CN3, the hardware UART), `debug_serial` (bit-banged debug output on
-  P15, which is the mic jack's PTT line), `buildinfo.sh`, and the shared `watchdog` service wrapper.
-- `common/buildinfo.sh` asks vbcc, vasm and vlink for their versions and
-  writes `build_tools[]`; phase1 prints it at boot (`BUILT WITH: vbcc 0.1,
-  vasm 2.0f 0.1, vlink 0.18a`), so a bench report names the compiler that
-  made the code that ran.
-- Everything includes the mask ROM names and `uPD78312A.inc` from
-  [`annotations/maskrom/`](../../annotations/maskrom/).
-- Panel bytes have names in [`include/`](../../include/README.md)
-  (`PANEL_BEEP_STOP` rather than `B4h`); new code should use them.
-  `benchtest` does. `panelprobe` predates them and keeps its own
-  `PANEL_CMD_...` names in `panelprobe/hardware.h`, some of them from
-  before the bench sessions settled what the bytes do.
+You can also run `make -C tools/probes panelprobe`. A probe's binary
+appears beside its source, such as
+`tools/probes/panelprobe/panelprobe.bin`. Each image is exactly
+26,112 bytes (application flash `0x8000-0xE5FF`). The Makefile
+automatically uses the toolchain's `bin/` if both repositories are
+cloned as siblings. Otherwise, put those tools on PATH or override them:
+
+```sh
+make panelprobe VBCC=/path/to/vbcc78k3 \
+                VASM=/path/to/vasm78k3_std \
+                VLINK=/path/to/vlink
+```
+
+`make clean` removes intermediate build files without removing the
+checked-in test images. Rebuilds are incremental by probe; the first
+`make` in a fresh checkout builds everything.
+
+Each probe has a tested compilation recipe because startup code,
+linked modules, RAM layout and assembly requirements vary. For C probes
+that recipe compiles all **relevant** `.c` modules with `-O=287`
+before assembling and linking them. Compiling every unrelated `.c`
+file together would cause conflicting entry points and hardware setups.
+The published toolchain already includes the compiler/assembler fixes
+needed by these programs.
+
+### Installing a probe on a radio
+
+**Warning:** These are experimental firmware images, not complete
+radio operating firmware. Verify that a particular probe is suitable
+for your hardware before installing it.
+
+1. Back up your radio's original firmware **and** channel data using
+   [TK-x4x Toolkit](https://github.com/KY4WI/Kenwood_TK-x4x_Toolkit).
+   Keep that backup somewhere safe.
+2. Build the desired probe and locate its `.bin` file (26,112 bytes).
+3. Use the Toolkit's **Advanced / Special Options → Development Firmware
+   Mode** to load and write that binary. Follow its instructions for
+   entering the radio's flashing `PROGRAM` mode and confirming the
+   write. **Do not use the normal Guided Firmware Workflow** for custom
+   probe images.
+4. Run the probe and compare its behavior with the probe's own notes.
+   Restore the original firmware before returning the radio to
+   normal operation. Development mode does not perform normal-mode
+   firmware readback verification; check the radio's displayed checksum
+   when prompted.
+
+The Toolkit [development-mode documentation](https://github.com/KY4WI/Kenwood_TK-x4x_Toolkit#development-firmware-mode)
+covers flash-page baselines, verification limitations and recovery.
+The build commands never initiate a firmware write.
 
 ## Writing your own probe
 
@@ -122,11 +147,11 @@ question.
    mv template.c mytest.c
    mv template.ld mytest.ld
    ```
-   Then edit `build.sh` to match (`template.ld` -> `mytest.ld`,
+   Then adjust the copied `build.sh` once (`template.ld` -> `mytest.ld`,
    `template.bin` -> `mytest.bin`, and the `template` entry in
-   `CSOURCES`/`SOURCES` -> `mytest`) and `check_images.sh`'s naming rule
-   (the bullet in [Images](#images) above) is satisfied automatically,
-   since the source and the image share the new name.
+   `CSOURCES`/`SOURCES` -> `mytest`). The Makefile discovers your new
+   directory automatically: run `make mytest` at the repository root.
+   The source and image names also satisfy the [image check](#images).
 
 2. **The only file you need to understand line by line is your own `.c`
    file.** `crt0.s`, `panel.c`, `panel.h` and `hardware.h` are borrowed

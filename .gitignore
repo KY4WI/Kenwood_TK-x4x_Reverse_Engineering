@@ -1,4 +1,5 @@
 # Locally built tools
+tools/probes/.build/
 tools/legacy/tk840download
 tools/legacy/tk840upload
 tools/legacy/tk941patch
