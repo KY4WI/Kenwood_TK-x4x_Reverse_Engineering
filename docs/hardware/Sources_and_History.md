@@ -365,6 +365,17 @@ different from the rest of the connector.
 - Mic Port Serial 3.3: the stock tuning session's serial bytes suspend the
   3 ms tick, and with it squelch sampling.
 
+## 2026-11-01 (mic lines at the panel CPU)
+
+- Section 11.2: both mic jack lines reach the panel CPU (Dave, from the
+  schematic). PTT: pin 50 (`P30/LCDCL`) and pin 43 (`P11/INT1`); pin 50
+  had been named `P31/SYNC` by mistake. Hanger: pin 38 (`P00`) and pin 51
+  (`P31/SYNC`), pulled up through 47 kΩ. The hanger line is where the PC's
+  data arrives, which explains how `PROGRAM` at 1200 baud becomes the
+  panel's `55h A0h`. Working explanation: the panel uses both lines only as
+  serial inputs, not as switches. New table of both lines' panel and main
+  CPU pins.
+
 ---
 
 Part of the [TK-x4x hardware reference](README.md) · previous: [Replacement firmware: bring-up, open items, design rules](Replacement_Firmware_Guide.md)
