@@ -81,7 +81,9 @@ Consequences for replacement firmware:
   sending on the mic port. `[RE]`
 - The PTT line also goes to the panel CPU (pins 50 and 43, the latter its
   `INT1`; [Front Panel](Front_Panel.md) section 11.2), so the panel sees
-  everything we send on the mic port. `[SCH]`
+  everything we send on the mic port. The hanger line reaches the panel
+  CPU as well, so it also hears what the PC sends: that is how `PROGRAM`
+  at 1200 baud becomes the panel's `55h A0h`. `[SCH]`
 - With a microphone plugged in, its PTT switch can pull the line low
   against our output, and its hanger switch makes edges on the serial
   input. Mic-port serial is for a cable in the jack, not alongside a mic. `[RE]`

@@ -54,10 +54,21 @@ The POWER switch is not one of these eight software-scanned panel inputs.
 (`P31/SYNC`) and pin 43 (`P11/INT1`, an external interrupt input).
 `[SCH]` (Dave, 2026-11-01). The main CPU reads PTT itself as well (pin 8,
 section 4.1), and the stock application keys from that, never from a
-panel byte. What the panel does with PTT is `[OPEN]`; no panel byte for it
-has been seen. Since the main CPU's mic-port serial output drives this
+panel byte. Since the main CPU's mic-port serial output drives this
 same line, **every 0 bit we send on the mic port is an edge on the panel's
 `INT1`**.
+
+**The mic hanger line reaches the panel CPU too** `[SCH]` (Dave,
+2026-11-01; panel pin numbers not yet noted). That is the line the main
+CPU receives the PC's data on (main CPU pin 13, section 4.1), and it
+explains how `PROGRAM` at 1200 baud on the mic jack comes back from the
+panel as `55h A0h`. Working explanation `[RE]`: the panel uses both mic
+lines only as serial inputs (hanger: the PC's data; PTT: the radio's own
+replies), not as a PTT or hook switch. A finger on the PTT switch can't
+make a 1200-baud byte (0.83 ms bits, plus contact bounce), which fits
+no panel byte ever having been seen for a PTT press. `[OPEN]`: which
+panel pin takes the hanger line, and whether the panel acts on anything
+it hears on PTT.
 
 ## 11.3 LCD hardware owned by the panel CPU
 
