@@ -79,6 +79,9 @@ Consequences for replacement firmware:
 - While the radio sends serial data, every 0 bit pulls the PTT line low:
   anything watching PTT then sees it pressed. Never key on mic PTT while
   sending on the mic port. `[RE]`
+- The PTT line also goes to the panel CPU (pins 50 and 43, the latter its
+  `INT1`; [Front Panel](Front_Panel.md) section 11.2), so the panel sees
+  everything we send on the mic port. `[SCH]`
 - With a microphone plugged in, its PTT switch can pull the line low
   against our output, and its hanger switch makes edges on the serial
   input. Mic-port serial is for a cable in the jack, not alongside a mic. `[RE]`

@@ -50,6 +50,15 @@ memory/channel, scan, monitor, reverse, power, or other ham-radio functions.
 
 The POWER switch is not one of these eight software-scanned panel inputs.
 
+**The mic PTT line also reaches the panel CPU**, on two pins: pin 50
+(`P31/SYNC`) and pin 43 (`P11/INT1`, an external interrupt input).
+`[SCH]` (Dave, 2026-11-01). The main CPU reads PTT itself as well (pin 8,
+section 4.1), and the stock application keys from that, never from a
+panel byte. What the panel does with PTT is `[OPEN]`; no panel byte for it
+has been seen. Since the main CPU's mic-port serial output drives this
+same line, **every 0 bit we send on the mic port is an edge on the panel's
+`INT1`**.
+
 ## 11.3 LCD hardware owned by the panel CPU
 
 The µPD75308 directly drives the LCD through its segment/common outputs:
