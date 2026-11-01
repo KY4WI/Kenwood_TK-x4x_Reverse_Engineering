@@ -355,9 +355,15 @@ analog circuitry filters/couples/sums it into the transmit modulation path,
 while DAC-controlled calibration sets levels elsewhere in the chain.
 `[SM][FW][RE]`
 
-Physically, `P34`/`PWM0` is **pin 39** of the 64-pin plastic shrink DIP/QUIP
-package (µPD78312A/78310A pin configuration, sec. 1.3.1 of the manual) --
-between `AVss`/`AVREF`/`AN0-AN3` (pins 33-38) and the rest of port 3. `[DS]`
+Physically, on the radio's 64-pin plastic QFP (14 x 20 mm, the `GF` package
+of the µPD78312AGF-xxx-3BE; manual sec. 1.3.1, page 1-7), `P34`/`PWM0` is
+**pin 33**, right after `AVss` (pin 32) and before `P35`/`PWM1` (pin 34).
+`[DS]`
+
+*Correction (2026-11-01):* an earlier version of this section gave **pin 39**.
+That is the number on the 64-pin shrink DIP/QUIP drawing (page 1-6), a package
+this radio does not use. The `GF` part is the QFP, so pin 33 is the pin to
+probe.
 
 This path is appropriate for:
 

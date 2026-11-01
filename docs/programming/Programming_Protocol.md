@@ -246,6 +246,45 @@ for a read/write loop); see the hardware reference, section 12.4.
 
 The documented model-ID prefixes are `M890B1`, `M890B2`, `M890B3` (TK-840 variants), `M940B1`, and `M941B1`. A seventh state byte can indicate password protection. The identification bytes are not a substitute for checking the radio's actual hardware and firmware revision.
 
+## CLONE mode (radio to radio)
+
+Traced from the mask ROM (`1F39h` -> `118Dh`; listing `118Dh`-`14B5h`). It is
+a *sender only*: the radio in CLONE mode plays the PC's part of the ordinary
+session above, and the other radio is expected to be in the ordinary
+programming session. `[MASK][RE]` Not yet tried between two radios. `[OPEN]`
+
+- **Entry.** Hold `AUX` at power-on with codeplug `E66Ch` bit 3 set (panel
+  event `9Eh`, mode 9, application entry `8089h` -> `1F39h`). The display
+  shows `" CLONE  "`. Entry was bench-confirmed 2026-09-24; the transfer
+  itself was not. `[MASK][BENCH]`
+- **Transport.** The same bit-banged mic-jack serial port as the ordinary
+  session, not the hardware UART (`SCC`/`TXB`/`RXB` are never touched). Timer
+  1 times the transmit bits, with the same constants: `MD1 = 0340h` for 1200
+  baud, `0067h` for 9600. The pins are swapped relative to the ordinary
+  session: the radio sends on `P14` (hanger line, jack pin 13) and receives on
+  `P23`/`INTE2` (PTT line, jack pin 14), which is what the receiving radio's
+  `P22` input and `P15` output are wired to through a straight cable. `[MASK]`
+- **Sequence.** It sends `PROGRAM` at 1200 baud, waits for `06`, switches to
+  9600 baud, sends `02`, and compares the six model-ID bytes that come back
+  with its own (`FEC5h` down to `FEC0h`; a mismatch sends `E` and stops at
+  `" ERROR  "`), accepts a `Y` or `N` state byte, then sends `06`. Then, for
+  `E600h` up to `FE00h`, 48 times: `W`, address high, address low, `80h`, 128
+  data bytes, and waits for `06` before the next block. It finishes with `E`,
+  waits for `06` and shows `"  END   "`. A timeout or wrong reply abandons the
+  transfer after sending `E`. These are the same `W`/`E` records as the
+  ordinary session. `[MASK]`
+- **What it moves.** Only the codeplug, `E600h`-`FDFFh` (6,144 bytes). Never
+  firmware (`8000h`-`E5FFh`), never the EEPROM directly, and it has no read:
+  there is no `R` in the sender, and no receive code for `W` in CLONE mode at
+  all. A second key (`9Ch`) shows the 16-bit additive checksum of `E600h`-
+  `FDFFh` so two radios can be compared by eye. `[MASK]`
+- **Speed.** Not faster than the ordinary session: the data phase uses the
+  same 9600 baud timer value. At 9600 baud with two stop bits, 6,144 bytes
+  take about 7 s on the wire, plus 48 acknowledgements. `[MASK][RE]`
+- **Receiver side effect.** Because the sender ends with `W`... `E`, a
+  receiving radio in the ordinary session runs the `E` exit's EEPROM
+  clean-up (`102Bh`, described under "Reading CPU memory" below). `[RE]`
+
 ## Reading CPU memory
 
 A verified block request is:

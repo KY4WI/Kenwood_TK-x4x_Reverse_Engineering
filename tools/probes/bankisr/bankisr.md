@@ -91,8 +91,10 @@ itself.
   the interesting negative result: it would mean register banking is
   *not* safe to rely on across this interrupt as written here, and the
   idea should stop at the brainstorm stage.
-- Optional corroboration: scope `P34`/`PWM0`, physical **pin 39** on the
-  64-pin package (see section 1.3.1 of the uPD78312A manual). It should
+- Optional corroboration: scope `P34`/`PWM0`, physical **pin 33** on the
+  64-pin QFP the radio uses (section 1.3.1 of the uPD78312A manual,
+  page 1-7; an earlier version of this note said 39, which is the DIP
+  package's number). It should
   show the ISR's `addw ax,#1` ramp -- a slow sawtooth/staircase on the
   pin at the ISR's own output rate, visible proof the handler is really
   firing and really writing `PWM0` from inside the banked section, not

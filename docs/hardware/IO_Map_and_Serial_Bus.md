@@ -59,6 +59,10 @@ each go to two CPU pins, an input and an output on the same net: `[SCH]`
 | 14 | mic PTT | `P23/INTE2` | `P15` |
 | 13 | mic hanger (hook) | `P22/INTE1` | `P14` |
 
+On the radio's 64-pin QFP (manual sec. 1.3.1, page 1-7) the four CPU pins
+are `P14` = pin 7, `P15` = pin 8, `P22/INTE1` = pin 13 and `P23/INTE2` = pin
+14. `[DS]`
+
 So the same two wires carry everything the mic jack does:
 
 - **Normal use:** PTT and hanger are inputs. The stock application reads
