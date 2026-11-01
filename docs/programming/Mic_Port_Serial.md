@@ -124,7 +124,10 @@ sent. `[MASK][FW]`
   checked. `[FW]`
 - One timer for both directions, so it cannot send and receive at once.
 - Timer 1 is also the application's 3 ms tick (`MD1 = 0BB8h`); both routines
-  put it back afterwards. `[FW]`
+  put it back afterwards. `[FW]` While a byte is in progress the tick is
+  not delivered (`isr_tmf1` takes the bit instead), so everything paced by
+  it stops for that byte, squelch sampling included (hardware reference
+  section 14.2). Our own code should give the serial port its own timer.
 - The radio keeps running during this session, which shows the serial port
   can share the CPU with normal operation. `[FW]`
 

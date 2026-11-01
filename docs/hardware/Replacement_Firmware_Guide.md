@@ -91,9 +91,11 @@ These are the highest-value remaining reverse-engineering tasks:
 4. **P32 lock polarity/peripheral behavior.** Firmware-logic polarity is now
    resolved (P32=1 = locked/proceed, section 6.5); only the electrical
    polarity at the physical pin remains to be bench-confirmed.
-5. **P30 squelch algorithm.** Not in the mask ROM: no register reads, and
-   its `CI0` counter interrupts go to a bare `RETI` (section 14.1). Next:
-   trace the stock application's own vectors and `CI0` use.
+5. **Squelch.** The stock algorithm is now traced (section 14.2): `UDC0`
+   counts the noise pulses, read and cleared every 3 ms, filtered and
+   compared with EEPROM `F8h` with hysteresis. Remaining: the physical pin
+   number of `P30/CI0`, what `C7ADh` does on close, and bench timing (how
+   fast a signal opens after a channel change).
 6. **P15/P22/P23 normal-operation mode switching.** Separate mic/programming/
    clone semantics cleanly.
 7. **P35/DATA2.** Its alternate function is enabled at boot alongside five

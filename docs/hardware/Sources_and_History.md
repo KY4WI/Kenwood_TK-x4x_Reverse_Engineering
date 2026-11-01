@@ -172,10 +172,8 @@ tracing (new section 26 entries).
   into a first calibration map, and separately documents a service/display
   access pattern over nearby offsets whose relationship to the operational
   bytes is flagged as unconfirmed rather than assumed.
-- **P30 squelch: searched and confirmed not found** (14.1) at the register
-  level in either ROM -- recorded explicitly so this isn't re-searched from
-  scratch, with the real next step (trace the EXIF0/EXIF1/TMF0/TMF1 vector
-  targets) named instead.
+- **P30 squelch:** searched for at the register level in both ROMs and not
+  found; the 2026-11-01 entry has the answer (`UDC0`, not `P3`).
 - **P35/DATA2:** confirmed its alternate function is enabled at boot as part
   of a bulk 6-pin config write, but no post-boot use was found anywhere;
   downgraded to low priority rather than left as a flat unknown.
@@ -352,6 +350,20 @@ different from the rest of the connector.
 - Section 4 and 4.1: the schematic's pin labels (Dave), and the mic jack
   wiring: `P15`/`P23` on the PTT line, `P14`/`P22` on the hanger line, so
   the mic-port serial output pulls PTT low on every 0 bit.
+
+## 2026-11-01 (squelch)
+
+- Sections 14.1-14.3: how stock squelch works, traced in AB00 and 8355
+  (the same code at the same addresses). The mask ROM sets up `UDC0` to
+  count the `CI0` noise pulses; `squelch_update` (`8238h`, CALLT `08h`)
+  reads and clears it every 3 ms tick, filters it, and compares it with
+  the EEPROM `F8h` threshold with 45 counts of hysteresis. The earlier
+  searches missed it because they looked for reads of `P3`, the capture
+  registers and `FRCC`, not `UDC0`. Old 14.2 (accessory SQ) is now 14.3.
+- Section 9.4.1: EEPROM `F8h` is the squelch threshold; `FEF0h` there is
+  register `X`, not a RAM variable.
+- Mic Port Serial 3.3: the stock tuning session's serial bytes suspend the
+  3 ms tick, and with it squelch sampling.
 
 ---
 

@@ -504,62 +504,98 @@ quiets the receiver noise and the pulse train collapses; the schematic/service
 notes describe "signal off" as pulses and "signal on" as a steady low state.
 `[SM][SCH][RE]`
 
-So the low-level firmware abstraction should be named something like:
+`P30/CI0` is a **noise-pulse source**, not a binary carrier line. Do not
+model squelch as a bit read from `P3`: neither ROM ever reads `P3.0`. The
+pulses are counted in hardware and the count is read periodically.
 
-```text
-squelch_noise_pulses
-```
+The physical pin number of `P30/CI0` on the 64-pin QFP is `[OPEN]` (not
+yet read from the datasheet's pin diagram).
 
-rather than simply `carrier_detect`.
+## 14.2 How stock squelch works
 
-The CPU's `CI0` peripheral is well suited to counting/timing those transitions.
-The exact stock threshold/window algorithm is still `[OPEN]` and should be
-recovered from the application firmware or measured before copying Kenwood's
-behavior.
+Traced in both stock images; the code is byte for byte the same in TK-941
+AB00 and TK-840 8355, at the same addresses. `[FW][MASK]`
 
-`P30/CI0` is a **noise-pulse source**, not a proven binary carrier GPIO.
-Do not model squelch as a simple bit read from an assumed port register.
+**The counter.** The mask ROM's reset code sets `UDCC0 = 88h` and
+`CUIM = 01h` (`00B5h`, `00BEh`), after which the up/down counter `UDC0`
+(`FF1Ch`) counts the noise pulses on `CI0` with no software help. Its
+interrupts (`CRF00`/`CRF01`, vectors `001Ah`/`001Ch`, and `801Ah`/`801Ch`
+in the application) go to a bare `RETI` in both ROMs; nothing is
+interrupt driven. The application just reads `UDC0` and writes it back to 0.
+`[MASK][FW]`; the exact meaning of the two control values is `[DS]`
+unchecked.
 
-**Searched and not found (recorded so this isn't re-searched from scratch):**
-a direct search of both the external firmware and mask ROM for any bit-test
-of `0xFF03.0` (P30), any whole-byte read of `0xFF03`, and any reference at
-all to the capture registers `CPT0`/`CPT1` (`0xFF10-13`) or the free-running
-counter `FRCC` (`0xFF60`) turned up **zero hits** in either ROM. `1F12`'s
-baseline (section 19.2) does configure a different-looking timer/capture
-block (`0xFF0E`, `0xFF14`, `0xFF16`, plus byte SFRs `sfr[0x60]`/`sfr[0x64]`/
-`sfr[0x66]`/`sfr[0x68]`) at startup, but nothing was found reading those
-registers back and comparing against a threshold, so no connection to
-squelch could be established. `[FW][MASK]`
+**The sample tick.** Timer 1's interrupt (`isr_tmf1`, `8AFAh`) sets
+`FED5h.5` every **3 ms** (`MD1 = 0BB8h`), but only when timer 1 isn't busy
+with a mic-port serial bit: the stock tuning session's soft serial uses the
+same timer, so **no squelch samples are taken while a mic-port byte is
+being sent or received**. `[FW]`
 
-**The mask ROM's vectors were traced, and none of them is squelch.** `[MASK]`
+**`squelch_update`** (`8238h`, CALLT slot `08h`). The main loops call it
+often (five times per pass of the loop at `9E01h`, and from `A9A5h` on);
+it does nothing unless the 3 ms flag is set, so it runs at most once per
+tick, and not at all while transmitting (`FE78h.7`, set on the transmit
+paths, cleared before `tune_rx_word`). Each tick: `[FW]`
 
-- `CRF00` and `CRF01`, the interrupts of the counter on `CI0`/`P30`, have no
-  handler: their vectors (`001AH`, `001CH`) point at `08A4h`, a bare `RETI`
-  shared with every unused source (`default_int_handler`). So nothing in
-  the mask ROM counts the noise pulses.
-- The targets reached through the other vectors belong to the serial ports:
-  `0FA4h` is the mic-port transmit bit handler (timer 1), `0FDAh` the
-  mic-port receive start bit (`EXIF1`), `17E5h` the firmware loader's
-  receive start bit ([Mic Port Serial](../programming/Mic_Port_Serial.md),
-  section 3). `EXIF2`'s handler (`1513h`) picks a timer-0 period by
-  `FED7.5`, unmasks `TMIC0`, masks `EXIC2`, clears a history byte (`FEC7h`)
-  and sets a count of 9 (`FEC9h`). `TMF0`'s handler (`08A5h`) branches by
-  `FEDE.1`/`.2` to `1006h`, `153Fh` or `17C2h`; `153Fh` samples `P23` (the
-  clone/programming data input) into that history byte. `1006h` and `17C2h`
-  were not followed further, but they are reached through `TMF0`, not
-  `CI0`.
+1. `pulses = UDC0`, then `UDC0 = 0`.
+2. `quiet = 47 - min(pulses, 47)` (`SQ_PULSE_MAX = 2Fh`): 0 = all noise,
+   47 = no noise pulses at all in 3 ms.
+3. One-pole low-pass filter in `FE30h`:
+   `filter = filter × DF5Ah / 10000h + quiet` (×0.873 per tick, a time
+   constant of about 22 ms). `[RE]` this reads `MULUW` as leaving the high
+   word in `AX`, which is the only reading that gives a working filter.
+4. `level = filter / 2`. With a steady input `level` settles at about
+   `3.94 × quiet`, so 0 to about 185.
+5. Compare with the threshold `sq_threshold` (`FE5Eh`, copied to `FE34h`):
+   - **open** when `level ≥ sq_threshold`;
+   - **close** when `level + 45 < sq_threshold` (`SQ_HYSTERESIS = 2Dh`);
+   - anything between leaves the state alone.
 
-So the squelch algorithm is not in the mask ROM. It has to be in the
-application image, which may route `CI0`'s interrupts to its own handlers
-(`TPF` set; section 2.3). Tracing the stock application (AB00h) for
-`CRF00`/`CRF01` vectors and noise-pulse counting is the next step. `[MASK][RE]`
+   The state is `FE74h.3` (set = open, "busy"). The stock code reads that
+   bit in about ten places to mute audio, light BUSY and so on.
 
-## 14.2 Accessory SQ is different
+**The threshold.** `sq_threshold` comes from EEPROM `F8h` (the squelch
+alignment byte, section 9.4.1; the read goes through `FEF0h`, which is
+register `X` of bank 0, into the low byte of `FE5Eh`). Setting it to 0 makes `level ≥ 0` always
+true, which is how the monitor / squelch-off function opens it: the code
+at `9F89h`/`9FAFh` toggles between the EEPROM value and 0, with panel
+bytes `9Dh`/`9Eh` for the indicator. `B739h`/`B748h` step it down and up by
+one (tuning mode). `[FW]`
 
-The `SQ` output presented externally is generated through the 4094 `Q7` path.
+**After a channel change.** `pll_lock_wait` and the receive tune
+(`9BABh` in AB00, `9C0Dh` in 8355, and `DA1Fh`) wait 10 ms for lock, one
+more 3 ms tick, then zero `UDC0`, so the first count after a tune is clean.
+`squelch_reset` (`82C7h`) is called on channel changes: it preloads
+`filter` from the threshold so a decision comes sooner, forces the state
+closed, and zeroes `UDC0`. `FE74h.2`, set at `DA3Eh`, makes opening
+easier until the first open: while it is set, the open test is
+`level ≥ 51` (for thresholds below `49h`) or `level ≥ sq_threshold - 22`.
+`[FW]`; the preload arithmetic is not worked through. `[OPEN]`
+
+**On open and close** `squelch_update` also: `[FW]`
+
+- drives the accessory `SQ` line: `outexp_shadow.7` (4094 `Q7`) cleared on
+  open, set on close (skipped while `FE79h.1` is set);
+- if `FEDCh.2` is set (the same bit that copies panel bytes to the
+  hardware UART, section 12.4), sends `70h` (open) or `71h` (close) out of
+  the hardware UART;
+- on close, if `FEC3h.7` is set and `FE7Fh.2` clear, calls `C7ADh` first.
+  `[OPEN]` what that does (squelch tail or a signalling timer are
+  candidates).
+
+**For replacement firmware** this is easy to copy: read and clear `UDC0`
+every 3 ms, filter, compare with hysteresis. A scan step costs about 13 ms
+of lock and settle plus the filter's time to decide; how long a real
+signal takes to open (and noise to stay shut) should be measured on the
+bench before designing around it. `[RE]`
+
+## 14.3 Accessory SQ is different
+
+The `SQ` output presented externally is generated through the 4094 `Q7` path
+(`outexp_shadow.7`, driven by `squelch_update`, section 14.2).
 It is the radio's computed logic-squelch indication, not the raw P30 pulse
 source. Buffer/transistor circuitry can invert the level between FE28 bit 7 and
-the accessory connector. `[SM][SCH][RE]`
+the accessory connector. `[SM][SCH][FW]`
 
 ---
 

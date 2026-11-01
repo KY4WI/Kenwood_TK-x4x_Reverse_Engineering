@@ -324,7 +324,7 @@ to on-screen digits rather than writing hardware):** `[FW][RE]`
 | `0xEC`/`0xED` | compared/clamped against constant `6` |
 | `0xF4`/`0xF5` | compared/clamped against constant `2` |
 | `0xF6`/`0xF7` | compared/clamped against constant `3` |
-| `0xF8` | single byte -> RAM `0xFEF0` |
+| `0xF8` | squelch threshold: single byte -> `sq_threshold` (`0xFE5E`). The store goes through `0xFEF0`, which is register `X` of bank 0, not a RAM variable (section 14.2) |
 | `0xF0`, `0xF1`, `0xF2` | single bytes, formatted to ASCII digits for display only |
 | `0xF9`, `0xFA`, `0xFB` | single bytes -> RAM `0xFE54`/`0xFE56`/`0xFE58`, also formatted for display |
 | `0xFF` | blank-EEPROM sentinel -- mask-ROM routine `0x102B` treats `0xFF` at this address as "never formatted," and bulk-fills `0xC0-0xD1` (18 bytes) with `0xFF` in response |
