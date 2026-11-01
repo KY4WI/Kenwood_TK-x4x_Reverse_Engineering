@@ -365,6 +365,17 @@ different from the rest of the connector.
 - Mic Port Serial 3.3: the stock tuning session's serial bytes suspend the
   3 ms tick, and with it squelch sampling.
 
+## 2026-11-01 (low-speed data receive)
+
+- Section 13.4: CTCSS/DCS/LTR receive decode traced in AB00, with Dave's
+  schematic path (DET AMP -> low-pass -> `AN0` pin 27; high-pass -> Q202 ->
+  `P30/CI0` pin 30). Timer 0 is the sample clock (`MD0` per mode: 1667 Hz
+  CTCSS, 1075.3 Hz DCS, 2381 Hz LTR); CTCSS is a resonator band-pass,
+  envelope, low-pass and hysteresis thresholds. Pin 30 fills the gap in 14.1.
+- Section 13.3.2 corrected: the `ADM` write in the `TMF0` handler is the
+  per-tick receive sample start, not a one-time side effect; the transmit
+  tick is 93 µs (10.75 kHz), not 92 µs.
+
 ## 2026-11-01 (mic lines at the panel CPU)
 
 - Section 11.2: both mic jack lines reach the panel CPU (Dave, from the

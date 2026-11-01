@@ -422,10 +422,12 @@ confirmed against the real hardware vector layout) is **TMF0 -- on-chip
 routine entirely, `sub_8B15`, which is the *receive*-side `AN0`/`LSDIN`
 CTCSS/DCS discriminator (13.4) -- it reads `ADCR` and compares it to
 mid-scale, nothing to do with TX tone generation. The `ADM`/`ADIC` writes
-in `sub_8B36` are real, but they're a one-time side effect on that TMF0
-handler's very first entry (guarded by `ram_FE78.7`): it arms that
-unrelated receive subsystem once and never touches `ADM` again, which is
-what made the ADC theory look plausible from the DDS code alone. `[FW][RE]`
+in `sub_8B36` are the receive side of the same handler: on every `TMF0`
+while **not** transmitting (`FE78.7` clear) it starts one A/D conversion
+on `AN0`, so timer 0 is also the receive sample clock (13.4). While
+transmitting it runs the DDS instead. *Correction (2026-11-01):* this
+paragraph used to say the `ADM` write happened only once, on the
+handler's first entry. `[FW][RE]`
 
 The actual driver, traced through `TMC0`/`MD0` (sec. 4.3.4 of the
 manual): `TMC0 = 0x80` selects interval-timer mode, free-running (no
@@ -434,8 +436,9 @@ external trigger), `TM0` clocked at `f_CLK/6` = **1 MHz** at this radio's
 `TMF0` fires and `TM0` resets. The arming call is `sub_B05E`, the single
 shared entry point both the QT/DQT frequency-word path and the LTR
 tone-table path converge on before falling into `loc_B0CC`: `MD0 =
-0x005C` (92 decimal), `TM0 = 0`. **92 us per conversion = a flat 10.87
-kHz tick, for all three modes alike.** `[FW][RE]`
+0x005C` (92 decimal), `TM0 = 0`. **93 us per tick (`MD0` + 1, see 13.4)
+= about 10.75 kHz, for all three modes alike while transmitting.**
+Receiving uses other `MD0` values per mode (13.4). `[FW][RE]`
 
 That's about 4.9x oversampling on the higher (2200 Hz) Bell 202 tone --
 noticeably less generous than the earlier wrong estimate, but still a
@@ -479,14 +482,106 @@ the coupling filter (13.3.1) and the deviation limiter can take before
 clipping; the actual stock `F9` value (and therefore how much headroom is
 left) hasn't been read back from a real radio yet. `[OPEN]`
 
-## 13.4 Low-speed receive signaling
+## 13.4 Low-speed receive signaling (CTCSS, DCS, LTR decode)
 
 ```text
-AN0 = LSDIN
+AN0 = LSDIN (pin 27)
 ```
 
-AN0 is the receive low-speed signaling input used for CTCSS/DCS-type decode.
-`[SM]`
+"LSD" is Kenwood's **low-speed data**: everything sub-audible, i.e.
+CTCSS (Kenwood "QT"), DCS ("DQT") and LTR's 300 bps data. The radio has no
+tone decoder chip: the main CPU samples the sub-audible band on `AN0` and
+decodes all three in software. `[SM][FW]`
+
+### 13.4.1 Hardware path (from the schematic, Dave, 2026-11-01)
+
+```text
+IF/FM detector MC2272SV -> MC22173 "DET AMP" -+-> NJM4558 1/2, low-pass  -> LSD IN -> pin 27 (AN0)
+                                              +-> NJM4558 2/2, high-pass -> Q202 "clip" -> SQ -> pin 30 (P30/CI0)
+```
+
+The same detector audio feeds both: the low-pass keeps only the
+sub-audible band for `AN0`, and the high-pass keeps only the noise above
+the voice band, which Q202 squares up into pulses for the squelch counter
+(14.1). `[SCH]`
+
+### 13.4.2 Sampling
+
+Timer 0 is the sample clock. Its interrupt (`TMF0`, `sub_8B36`) starts one
+A/D conversion on `AN0` (`ADM = 81h`) on every tick while receiving. The
+A/D-done interrupt (`ADF`, `sub_8B15`) reads `ADCR`, takes 7Fh off as the
+mid-scale bias, and leaves the sample as a magnitude (`FE36h`) and a sign
+(`FE2Fh`: FFh at or above mid-scale, 00h below). The filter runs from the
+main loop (`sub_8381`), once per new sample (`FE74.5`). `AN0` is read
+nowhere else. `[FW]`
+
+Timer 0 counts 1 µs; `MD0` sets the period, which is `MD0` + 1 µs (that is
+what makes the DCS rate come out at exactly 8 samples per bit). The decoder
+set-up (`sub_897A`) picks the rate by mode: `[FW][RE]`
+
+| Mode | `MD0` | Period | Sample rate | Note |
+|---|---|---:|---:|---|
+| CTCSS | `0257h` | 600 µs | 1667 Hz | Nyquist 833 Hz, well above 254.1 Hz |
+| DCS | `03A1h` | 930 µs | 1075.3 Hz | 8 samples per 134.4 bps bit |
+| LTR | `01A3h` | 420 µs | 2381 Hz | about 8 samples per 300 bps bit |
+| Transmit (DDS) | `005Ch` | 93 µs | 10.75 kHz | 13.3.2 |
+
+The RX tone word is the channel's CTCSS/DCS word from the codeplug, held
+in `FE8Ch`-`FE8Dh` (`0xC000` + tone x 10 for CTCSS, `0xE000` + code for DCS;
+see the codeplug format). `[FW]`
+
+### 13.4.3 The CTCSS decoder
+
+A textbook narrow-band tone detector, in 16-bit sign-magnitude
+fixed point: `[FW][RE]`
+
+1. **Band-pass:** a second-order resonator tuned to the programmed tone,
+   `y[n] = b0·x[n] + a1·y[n-1] − a2·y[n-2]` (`FE38h` b0, `FE3Eh` a1, `FE40h`
+   a2; state `FE3Ah`-`FE46h`). The input is scaled down by 8 first.
+2. **Coefficients:** computed per tone (`sub_88CE`) from the tone frequency
+   (word & 0FFFh = tone x 10) by linear interpolation in two 64-entry
+   tables in the mask ROM (`waveform_tables`), so any tone in the range
+   works, not just a fixed list.
+3. **Envelope:** a second stage (`FE48h`-`FE52h`) turns the resonator output
+   into a level, clamped at 014Ah and halved.
+4. **Smoothing:** another second-order low-pass (`FE86h`, `FE60h`, `FE90h`)
+   gives a slow level in `FE8Ah`.
+5. **Decision with hysteresis:** tone detected (`FE75.1`) when the level
+   reaches 35BCh, released below 23D3h; a second, lower threshold (11E9h)
+   sets `FE75.0`. Detection is only accepted while `FE74.3` is set
+   (meaning not yet traced; probably carrier/squelch open).
+
+Note: `FE40h` is the resonator's a2 while receiving and the TOT count while
+transmitting; the two never run at the same time (`sub_8381` returns at
+once while `FE78.7`, transmitting, is set). See the TOT Off patch in the
+firmware repo. `[FW]`
+
+### 13.4.4 DCS and LTR
+
+- **DCS:** the same resonator front end, retuned (fixed coefficients),
+  slices one bit per 8 samples into a shift register (`FE60h` on) and
+  compares it with the expected code word, its rotations and inverse
+  (`FE94h`, `FEA4h`, `FEB4h`, with a bit-error count, `sub_88A6`). The
+  expected word is built from the 9-bit code with the standard DCS
+  Golay (23,12) parity, generator `C75h` (`sub_8AC6`). `[FW][RE]`
+- **LTR:** again the same front end with its own coefficients; bits go into
+  a 56-bit shift register (`FE88h`-`FE8Eh`) that is matched against the sync
+  pattern by XOR and a bit-count table: 6 or fewer errors arms it, 10 or more
+  rejects. `[FW][RE]`
+
+### 13.4.5 For replacement firmware
+
+Nothing here needs special hardware handling: a timer interrupt at the
+sample rate, one `AN0` conversion per tick, and a tone detector in the
+main loop. Our own code does not have to copy Kenwood's filter; a
+Goertzel detector per tone at 1667 Hz, or the same resonator-envelope
+design, both fit the CPU easily. Open items: `[OPEN]`
+
+- the A/D conversion time and whether one conversion per tick at 1667 Hz
+  leaves the 3 ms tick and the panel link undisturbed (stock shows it does);
+- the meaning of `FE74.3` (the gate on detection);
+- the `AN0` signal level for a standard-deviation tone (scope or probe), to
+  set thresholds.
 
 ---
 
@@ -508,8 +603,8 @@ notes describe "signal off" as pulses and "signal on" as a steady low state.
 model squelch as a bit read from `P3`: neither ROM ever reads `P3.0`. The
 pulses are counted in hardware and the count is read periodically.
 
-The physical pin number of `P30/CI0` on the 64-pin QFP is `[OPEN]` (not
-yet read from the datasheet's pin diagram).
+`P30/CI0` is **pin 30** on the 64-pin QFP, fed from the high-pass and Q202
+clipper (13.4.1). `[SCH]` (Dave, 2026-11-01)
 
 ## 14.2 How stock squelch works
 
@@ -605,7 +700,7 @@ the accessory connector. `[SM][SCH][FW]`
 
 | ADC input | Current role | Evidence |
 |---|---|---|
-| `AN0` | low-speed signaling input (`LSDIN`) | `[SM]` |
+| `AN0` (pin 27) | low-speed signaling input (`LSDIN`, 13.4) | `[SM][SCH]` |
 | `AN1` | electrically part of/near the AN2 strap network; not used by decoded model routine | `[SCH][MASK][OPEN]` |
 | `AN2` | model/RF-split strap | `[SM][MASK]` |
 | `AN3` | family strap; GND on TK-840 | `[SM][MASK]` |
